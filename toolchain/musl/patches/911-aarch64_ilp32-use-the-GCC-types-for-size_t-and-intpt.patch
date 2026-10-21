@@ -1,0 +1,50 @@
+From 9a8bac9698645e5f18500807c2961a3c2638bb46 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 21:59:15 +0800
+Subject: [PATCH] aarch64_ilp32: use the GCC types for size_t and intptr_t
+
+GCC defines size_t as unsigned long and ptrdiff_t as long for AArch64
+ILP32, but intptr_t as int and uintptr_t as unsigned int. With _Addr int
+::size_t and std::size_t differed in C++ and libstdc++ did not build.
+Use _Addr long and define intptr_t and uintptr_t in the arch alltypes.
+---
+ arch/aarch64_ilp32/bits/alltypes.h.in | 7 ++++++-
+ arch/aarch64_ilp32/bits/stdint.h      | 6 +++---
+ 2 files changed, 9 insertions(+), 4 deletions(-)
+
+diff --git a/arch/aarch64_ilp32/bits/alltypes.h.in b/arch/aarch64_ilp32/bits/alltypes.h.in
+index 191bb6a3..3a135bd5 100644
+--- a/arch/aarch64_ilp32/bits/alltypes.h.in
++++ b/arch/aarch64_ilp32/bits/alltypes.h.in
+@@ -1,4 +1,6 @@
+-#define _Addr int
++/* as GCC for ILP32: size_t, ssize_t and ptrdiff_t are long based,
++ * intptr_t and uintptr_t are int (defined below, before the generic ones) */
++#define _Addr long
+ #define _Int64 long long
+ #define _Reg long long
+ 
+@@ -15,6 +17,9 @@ TYPEDEF unsigned wchar_t;
+ #endif
+ TYPEDEF unsigned wint_t;
+ 
++TYPEDEF int intptr_t;
++TYPEDEF unsigned int uintptr_t;
++
+ TYPEDEF int blksize_t;
+ TYPEDEF unsigned int nlink_t;
+ 
+diff --git a/arch/aarch64_ilp32/bits/stdint.h b/arch/aarch64_ilp32/bits/stdint.h
+index d1b27121..d9407ffc 100644
+--- a/arch/aarch64_ilp32/bits/stdint.h
++++ b/arch/aarch64_ilp32/bits/stdint.h
+@@ -15,6 +15,6 @@ typedef uint32_t uint_fast32_t;
+ #define INTPTR_MIN      INT32_MIN
+ #define INTPTR_MAX      INT32_MAX
+ #define UINTPTR_MAX     UINT32_MAX
+-#define PTRDIFF_MIN     INT32_MIN
+-#define PTRDIFF_MAX     INT32_MAX
+-#define SIZE_MAX        UINT32_MAX
++#define PTRDIFF_MIN     (-1-0x7fffffffL)
++#define PTRDIFF_MAX     0x7fffffffL
++#define SIZE_MAX        0xffffffffUL

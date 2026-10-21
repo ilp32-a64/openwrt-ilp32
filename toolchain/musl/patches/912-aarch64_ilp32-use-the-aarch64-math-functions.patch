@@ -1,0 +1,247 @@
+From 818cfdb15fc60411b3e2a7fa37582829e03f15fc Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 22:16:34 +0800
+Subject: [PATCH] aarch64_ilp32: use the aarch64 math functions
+
+The aarch64 math sources are inline asm on floating point registers and
+work unchanged for ILP32. Without them the generic C fma and fmaf failed
+libc-test. lrint, lrintf, lround and lroundf are left out: they convert
+into a 64-bit register, which for a 32-bit long truncates instead of
+raising FE_INVALID, so the generic versions are used.
+---
+ src/math/aarch64_ilp32/ceil.c       | 1 +
+ src/math/aarch64_ilp32/ceilf.c      | 1 +
+ src/math/aarch64_ilp32/fabs.c       | 1 +
+ src/math/aarch64_ilp32/fabsf.c      | 1 +
+ src/math/aarch64_ilp32/floor.c      | 1 +
+ src/math/aarch64_ilp32/floorf.c     | 1 +
+ src/math/aarch64_ilp32/fma.c        | 1 +
+ src/math/aarch64_ilp32/fmaf.c       | 1 +
+ src/math/aarch64_ilp32/fmax.c       | 1 +
+ src/math/aarch64_ilp32/fmaxf.c      | 1 +
+ src/math/aarch64_ilp32/fmin.c       | 1 +
+ src/math/aarch64_ilp32/fminf.c      | 1 +
+ src/math/aarch64_ilp32/llrint.c     | 1 +
+ src/math/aarch64_ilp32/llrintf.c    | 1 +
+ src/math/aarch64_ilp32/llround.c    | 1 +
+ src/math/aarch64_ilp32/llroundf.c   | 1 +
+ src/math/aarch64_ilp32/nearbyint.c  | 1 +
+ src/math/aarch64_ilp32/nearbyintf.c | 1 +
+ src/math/aarch64_ilp32/rint.c       | 1 +
+ src/math/aarch64_ilp32/rintf.c      | 1 +
+ src/math/aarch64_ilp32/round.c      | 1 +
+ src/math/aarch64_ilp32/roundf.c     | 1 +
+ src/math/aarch64_ilp32/sqrt.c       | 1 +
+ src/math/aarch64_ilp32/sqrtf.c      | 1 +
+ src/math/aarch64_ilp32/trunc.c      | 1 +
+ src/math/aarch64_ilp32/truncf.c     | 1 +
+ 26 files changed, 26 insertions(+)
+ create mode 100644 src/math/aarch64_ilp32/ceil.c
+ create mode 100644 src/math/aarch64_ilp32/ceilf.c
+ create mode 100644 src/math/aarch64_ilp32/fabs.c
+ create mode 100644 src/math/aarch64_ilp32/fabsf.c
+ create mode 100644 src/math/aarch64_ilp32/floor.c
+ create mode 100644 src/math/aarch64_ilp32/floorf.c
+ create mode 100644 src/math/aarch64_ilp32/fma.c
+ create mode 100644 src/math/aarch64_ilp32/fmaf.c
+ create mode 100644 src/math/aarch64_ilp32/fmax.c
+ create mode 100644 src/math/aarch64_ilp32/fmaxf.c
+ create mode 100644 src/math/aarch64_ilp32/fmin.c
+ create mode 100644 src/math/aarch64_ilp32/fminf.c
+ create mode 100644 src/math/aarch64_ilp32/llrint.c
+ create mode 100644 src/math/aarch64_ilp32/llrintf.c
+ create mode 100644 src/math/aarch64_ilp32/llround.c
+ create mode 100644 src/math/aarch64_ilp32/llroundf.c
+ create mode 100644 src/math/aarch64_ilp32/nearbyint.c
+ create mode 100644 src/math/aarch64_ilp32/nearbyintf.c
+ create mode 100644 src/math/aarch64_ilp32/rint.c
+ create mode 100644 src/math/aarch64_ilp32/rintf.c
+ create mode 100644 src/math/aarch64_ilp32/round.c
+ create mode 100644 src/math/aarch64_ilp32/roundf.c
+ create mode 100644 src/math/aarch64_ilp32/sqrt.c
+ create mode 100644 src/math/aarch64_ilp32/sqrtf.c
+ create mode 100644 src/math/aarch64_ilp32/trunc.c
+ create mode 100644 src/math/aarch64_ilp32/truncf.c
+
+diff --git a/src/math/aarch64_ilp32/ceil.c b/src/math/aarch64_ilp32/ceil.c
+new file mode 100644
+index 00000000..3d4c5e64
+--- /dev/null
++++ b/src/math/aarch64_ilp32/ceil.c
+@@ -0,0 +1 @@
++#include "../aarch64/ceil.c"
+diff --git a/src/math/aarch64_ilp32/ceilf.c b/src/math/aarch64_ilp32/ceilf.c
+new file mode 100644
+index 00000000..4d582fc4
+--- /dev/null
++++ b/src/math/aarch64_ilp32/ceilf.c
+@@ -0,0 +1 @@
++#include "../aarch64/ceilf.c"
+diff --git a/src/math/aarch64_ilp32/fabs.c b/src/math/aarch64_ilp32/fabs.c
+new file mode 100644
+index 00000000..1f684742
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fabs.c
+@@ -0,0 +1 @@
++#include "../aarch64/fabs.c"
+diff --git a/src/math/aarch64_ilp32/fabsf.c b/src/math/aarch64_ilp32/fabsf.c
+new file mode 100644
+index 00000000..78b50756
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fabsf.c
+@@ -0,0 +1 @@
++#include "../aarch64/fabsf.c"
+diff --git a/src/math/aarch64_ilp32/floor.c b/src/math/aarch64_ilp32/floor.c
+new file mode 100644
+index 00000000..3395e35c
+--- /dev/null
++++ b/src/math/aarch64_ilp32/floor.c
+@@ -0,0 +1 @@
++#include "../aarch64/floor.c"
+diff --git a/src/math/aarch64_ilp32/floorf.c b/src/math/aarch64_ilp32/floorf.c
+new file mode 100644
+index 00000000..2d1675e9
+--- /dev/null
++++ b/src/math/aarch64_ilp32/floorf.c
+@@ -0,0 +1 @@
++#include "../aarch64/floorf.c"
+diff --git a/src/math/aarch64_ilp32/fma.c b/src/math/aarch64_ilp32/fma.c
+new file mode 100644
+index 00000000..1e37bc77
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fma.c
+@@ -0,0 +1 @@
++#include "../aarch64/fma.c"
+diff --git a/src/math/aarch64_ilp32/fmaf.c b/src/math/aarch64_ilp32/fmaf.c
+new file mode 100644
+index 00000000..71a18a0c
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fmaf.c
+@@ -0,0 +1 @@
++#include "../aarch64/fmaf.c"
+diff --git a/src/math/aarch64_ilp32/fmax.c b/src/math/aarch64_ilp32/fmax.c
+new file mode 100644
+index 00000000..a348118f
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fmax.c
+@@ -0,0 +1 @@
++#include "../aarch64/fmax.c"
+diff --git a/src/math/aarch64_ilp32/fmaxf.c b/src/math/aarch64_ilp32/fmaxf.c
+new file mode 100644
+index 00000000..4e050a46
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fmaxf.c
+@@ -0,0 +1 @@
++#include "../aarch64/fmaxf.c"
+diff --git a/src/math/aarch64_ilp32/fmin.c b/src/math/aarch64_ilp32/fmin.c
+new file mode 100644
+index 00000000..f3b911ad
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fmin.c
+@@ -0,0 +1 @@
++#include "../aarch64/fmin.c"
+diff --git a/src/math/aarch64_ilp32/fminf.c b/src/math/aarch64_ilp32/fminf.c
+new file mode 100644
+index 00000000..621e7879
+--- /dev/null
++++ b/src/math/aarch64_ilp32/fminf.c
+@@ -0,0 +1 @@
++#include "../aarch64/fminf.c"
+diff --git a/src/math/aarch64_ilp32/llrint.c b/src/math/aarch64_ilp32/llrint.c
+new file mode 100644
+index 00000000..bcff76be
+--- /dev/null
++++ b/src/math/aarch64_ilp32/llrint.c
+@@ -0,0 +1 @@
++#include "../aarch64/llrint.c"
+diff --git a/src/math/aarch64_ilp32/llrintf.c b/src/math/aarch64_ilp32/llrintf.c
+new file mode 100644
+index 00000000..fdbfea12
+--- /dev/null
++++ b/src/math/aarch64_ilp32/llrintf.c
+@@ -0,0 +1 @@
++#include "../aarch64/llrintf.c"
+diff --git a/src/math/aarch64_ilp32/llround.c b/src/math/aarch64_ilp32/llround.c
+new file mode 100644
+index 00000000..670994d7
+--- /dev/null
++++ b/src/math/aarch64_ilp32/llround.c
+@@ -0,0 +1 @@
++#include "../aarch64/llround.c"
+diff --git a/src/math/aarch64_ilp32/llroundf.c b/src/math/aarch64_ilp32/llroundf.c
+new file mode 100644
+index 00000000..ee2157ec
+--- /dev/null
++++ b/src/math/aarch64_ilp32/llroundf.c
+@@ -0,0 +1 @@
++#include "../aarch64/llroundf.c"
+diff --git a/src/math/aarch64_ilp32/nearbyint.c b/src/math/aarch64_ilp32/nearbyint.c
+new file mode 100644
+index 00000000..13fff38b
+--- /dev/null
++++ b/src/math/aarch64_ilp32/nearbyint.c
+@@ -0,0 +1 @@
++#include "../aarch64/nearbyint.c"
+diff --git a/src/math/aarch64_ilp32/nearbyintf.c b/src/math/aarch64_ilp32/nearbyintf.c
+new file mode 100644
+index 00000000..cfde42f3
+--- /dev/null
++++ b/src/math/aarch64_ilp32/nearbyintf.c
+@@ -0,0 +1 @@
++#include "../aarch64/nearbyintf.c"
+diff --git a/src/math/aarch64_ilp32/rint.c b/src/math/aarch64_ilp32/rint.c
+new file mode 100644
+index 00000000..7ce7877d
+--- /dev/null
++++ b/src/math/aarch64_ilp32/rint.c
+@@ -0,0 +1 @@
++#include "../aarch64/rint.c"
+diff --git a/src/math/aarch64_ilp32/rintf.c b/src/math/aarch64_ilp32/rintf.c
+new file mode 100644
+index 00000000..cf53334c
+--- /dev/null
++++ b/src/math/aarch64_ilp32/rintf.c
+@@ -0,0 +1 @@
++#include "../aarch64/rintf.c"
+diff --git a/src/math/aarch64_ilp32/round.c b/src/math/aarch64_ilp32/round.c
+new file mode 100644
+index 00000000..16c47da1
+--- /dev/null
++++ b/src/math/aarch64_ilp32/round.c
+@@ -0,0 +1 @@
++#include "../aarch64/round.c"
+diff --git a/src/math/aarch64_ilp32/roundf.c b/src/math/aarch64_ilp32/roundf.c
+new file mode 100644
+index 00000000..854b6375
+--- /dev/null
++++ b/src/math/aarch64_ilp32/roundf.c
+@@ -0,0 +1 @@
++#include "../aarch64/roundf.c"
+diff --git a/src/math/aarch64_ilp32/sqrt.c b/src/math/aarch64_ilp32/sqrt.c
+new file mode 100644
+index 00000000..85b2314e
+--- /dev/null
++++ b/src/math/aarch64_ilp32/sqrt.c
+@@ -0,0 +1 @@
++#include "../aarch64/sqrt.c"
+diff --git a/src/math/aarch64_ilp32/sqrtf.c b/src/math/aarch64_ilp32/sqrtf.c
+new file mode 100644
+index 00000000..5de10993
+--- /dev/null
++++ b/src/math/aarch64_ilp32/sqrtf.c
+@@ -0,0 +1 @@
++#include "../aarch64/sqrtf.c"
+diff --git a/src/math/aarch64_ilp32/trunc.c b/src/math/aarch64_ilp32/trunc.c
+new file mode 100644
+index 00000000..0cd15e75
+--- /dev/null
++++ b/src/math/aarch64_ilp32/trunc.c
+@@ -0,0 +1 @@
++#include "../aarch64/trunc.c"
+diff --git a/src/math/aarch64_ilp32/truncf.c b/src/math/aarch64_ilp32/truncf.c
+new file mode 100644
+index 00000000..267b3821
+--- /dev/null
++++ b/src/math/aarch64_ilp32/truncf.c
+@@ -0,0 +1 @@
++#include "../aarch64/truncf.c"
