@@ -1,0 +1,76 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Chen Jiahao <chenjiahao16@huawei.com>
+Date: Mon, 27 Nov 2023 20:40:32 +0800
+Subject: [PATCH] arm64: set 32-bit compatible TASK_SIZE_MAX to fix U32
+ libc_write_01 error
+
+hulk inclusion
+category: bugfix
+bugzilla: https://gitee.com/openeuler/kernel/issues/I8JVJ3
+CVE: NA
+
+-------------------------------
+
+In U32 mode, the testcase libc_write_01 failed as below:
+
+[INFO][libc_write_01.c][29][main]:ret=4093
+[INFO][libc_write_01.c][30][main]:size_max=-1
+libc_write_01_u32: libc_write_01.c:31: main: Assertion `ret==-1' failed.
+Aborted
+
+The error here is due to the __range_ok check of "addr + size <=
+TASK_SIZE_MAX" is not performed as expectation.
+
+For U32 testcase libc_write_01, the specified "addr + size" is greater
+than 32-bit limit and should return -EFAULT, but TASK_SIZE_MAX still
+defined as UL(1) << VA_BITS in U32 mode, which is much greater than
+"addr + size" and cannot catch the overflow error.
+
+Fix above testcase failure by defining TASK_SIZE_MAX as 32-bit limit.
+Since is_compat_task() check leads to performance reduction by 4.89%
+on libMicro, the fix is wrapped by CONFIG_COMPAT_TASK_SIZE with default
+n. The performance will not be affected unless open this config
+manually.
+
+Fixes: cb478b93dc44 ("arm64: replace is_compat_task() with is_ilp32_compat_task() in TASK_SIZE_MAX")
+Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit 880fd21c0a46f9227bb71b2d47b7d8ee1af471d9)
+---
+ arch/arm64/Kconfig                 | 7 +++++++
+ arch/arm64/include/asm/processor.h | 5 +++++
+ 2 files changed, 12 insertions(+)
+
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -1857,6 +1857,13 @@ config THUMB2_COMPAT_VDSO
+ config COMPAT_ALIGNMENT_FIXUPS
+ 	bool "Fix up misaligned multi-word loads and stores in user space"
+ 
++config COMPAT_TASK_SIZE
++	bool "Set 32-bit compatible task size"
++	default n
++	help
++	  Set the task size with 32-bit limit, to be compatible with
++	  32-bit EL0 tasks.
++
+ menuconfig ARMV8_DEPRECATED
+ 	bool "Emulate deprecated/obsolete ARMv8 instructions"
+ 	depends on AARCH32_EL0
+--- a/arch/arm64/include/asm/processor.h
++++ b/arch/arm64/include/asm/processor.h
+@@ -55,8 +55,13 @@
+ #define TASK_SIZE_64		(UL(1) << vabits_actual)
+ 
+ #ifdef CONFIG_COMPAT
++#ifdef CONFIG_COMPAT_TASK_SIZE
++#define TASK_SIZE_MAX		(is_compat_task() ? \
++				UL(0x100000000) : (UL(1) << VA_BITS))
++#else
+ #define TASK_SIZE_MAX		(is_ilp32_compat_task() ? \
+ 				UL(0x100000000) : (UL(1) << VA_BITS))
++#endif
+ #if defined(CONFIG_ARM64_64K_PAGES) && defined(CONFIG_KUSER_HELPERS)
+ /*
+  * With CONFIG_ARM64_64K_PAGES enabled, the last page is occupied

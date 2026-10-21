@@ -1,0 +1,42 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Tue, 20 Oct 2026 20:19:38 +0800
+Subject: [PATCH] arm64: ilp32: do not build the generic compat ELF loader on
+ arm64
+
+The ILP32 series builds the arm64 compat ELF loaders in the architecture
+code: binfmt_elf32.c (AArch32, AARCH32_EL0) and binfmt_ilp32.c (ILP32)
+both include fs/compat_binfmt_elf.c with their own definitions. In
+5.10, COMPAT_BINFMT_ELF had to be selected by the architecture, and the
+series dropped that select. Since then COMPAT_BINFMT_ELF became
+"def_bool y" with "depends on COMPAT && BINFMT_ELF", so arm64 builds
+fs/compat_binfmt_elf.o as well:
+
+- with AARCH32_EL0=y, a second AArch32 ELF loader is registered
+  (vmlinux has the initcalls of binfmt_elf32, binfmt_ilp32 and
+  compat_binfmt_elf);
+- with ARM64_ILP32=y and AARCH32_EL0=n, it does not build, as the
+  compat ELF definitions belong to AArch32:
+  include/linux/elfcore-compat.h: error: unknown type name 'compat_elf_gregset_t'
+
+Do not enable COMPAT_BINFMT_ELF on arm64.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+(cherry picked from commit 8e26aab8c1fcf3faaf208509b86840642362a09c)
+(cherry picked from commit 8ecfdc020cab1b375df4ab2335002a719930c090)
+---
+ fs/Kconfig.binfmt | 3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/fs/Kconfig.binfmt
++++ b/fs/Kconfig.binfmt
+@@ -41,6 +41,9 @@ config BINFMT_ELF_KUNIT_TEST
+ config COMPAT_BINFMT_ELF
+ 	def_bool y
+ 	depends on COMPAT && BINFMT_ELF
++	# arm64 builds its AArch32 and ILP32 ELF loaders from compat_binfmt_elf.c
++	# itself (arch/arm64/kernel/binfmt_elf32.c, binfmt_ilp32.c)
++	depends on !ARM64
+ 	select ELFCORE
+ 
+ config ARCH_BINFMT_ELF_STATE

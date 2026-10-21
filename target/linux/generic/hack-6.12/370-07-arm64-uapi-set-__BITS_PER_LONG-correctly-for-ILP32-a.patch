@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Andrew Pinski <apinski@cavium.com>
+Date: Mon, 27 Nov 2023 20:40:09 +0800
+Subject: [PATCH] arm64: uapi: set __BITS_PER_LONG correctly for ILP32 and LP64
+
+maillist inclusion
+category: feature
+bugzilla: https://gitee.com/openeuler/kernel/issues/I8JVJ3
+CVE: NA
+
+Reference: https://github.com/norov/linux/commits/ilp32-5.2
+
+--------------------------------
+
+Define __BITS_PER_LONG depending on the ABI used (i.e. check whether
+__ILP32__ or __LP64__ is defined).  This is necessary for glibc to
+determine the appropriate type definitions for the system call interface.
+
+Signed-off-by: Andrew Pinski <apinski@cavium.com>
+Signed-off-by: Philipp Tomsich <philipp.tomsich@theobroma-systems.com>
+Signed-off-by: Christoph Muellner <christoph.muellner@theobroma-systems.com>
+Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
+Reviewed-by: David Daney <ddaney@caviumnetworks.com>
+Signed-off-by: Yury Norov <ynorov@marvell.com>
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Acked-by: Xie XiuQi <xiexiuqi@huawei.com>
+Signed-off-by: Chen Jun <chenjun102@huawei.com>
+Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit 566f233bfc765e274d6f107ec7edb3ae67a0ccfa)
+---
+ arch/arm64/include/uapi/asm/bitsperlong.h | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+--- a/arch/arm64/include/uapi/asm/bitsperlong.h
++++ b/arch/arm64/include/uapi/asm/bitsperlong.h
+@@ -17,7 +17,14 @@
+ #ifndef __ASM_BITSPERLONG_H
+ #define __ASM_BITSPERLONG_H
+ 
+-#define __BITS_PER_LONG 64
++#if defined(__LP64__)
++/* Assuming __LP64__ will be defined for native ELF64's and not for ILP32. */
++#  define __BITS_PER_LONG 64
++#elif defined(__ILP32__)
++#  define __BITS_PER_LONG 32
++#else
++#  error "Neither LP64 nor ILP32: unsupported ABI in asm/bitsperlong.h"
++#endif
+ 
+ #include <asm-generic/bitsperlong.h>
+ 

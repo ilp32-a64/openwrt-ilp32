@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Thu, 22 Oct 2026 20:14:57 +0800
+Subject: [PATCH] arm64: ilp32: parse the GNU property notes of ELF32 files
+
+binfmt_ilp32.c builds fs/binfmt_elf.c for ELF32 files but kept the ELF64
+ELF_GNU_PROPERTY_ALIGN of 8. The program properties of an ELF32 file are
+4-byte aligned, so parse_elf_property() refused every ILP32 executable
+or interpreter with a PT_GNU_PROPERTY segment with -ENOEXEC: for example
+any program built with -mbranch-protection=bti, on every CPU, with or
+without BTI.
+
+Use ELF32_GNU_PROPERTY_ALIGN, as fs/compat_binfmt_elf.c does. ELF_COMPAT
+stays 0: ILP32 runs AArch64 code, so arch_parse_elf_property() applies
+GNU_PROPERTY_AARCH64_FEATURE_1_BTI as for LP64.
+
+Tested on QEMU -cpu max and cortex-a35: an ILP32 program with a BTI
+property note runs (it was refused with ENOEXEC before), and an indirect
+call to a function without a BTI landing pad raises SIGILL with BTI
+(-cpu max), as for the same LP64 program.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/kernel/binfmt_ilp32.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+--- a/arch/arm64/kernel/binfmt_ilp32.c
++++ b/arch/arm64/kernel/binfmt_ilp32.c
+@@ -30,6 +30,10 @@
+ #define elf_note	elf32_note
+ #define elf_addr_t	Elf32_Addr
+ 
++/* GNU property notes of ELF32 files are 4-byte aligned */
++#undef	ELF_GNU_PROPERTY_ALIGN
++#define ELF_GNU_PROPERTY_ALIGN	ELF32_GNU_PROPERTY_ALIGN
++
+ /*
+  * Some data types as stored in coredump.
+  */

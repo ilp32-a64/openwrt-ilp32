@@ -1,0 +1,111 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 22:19:39 +0800
+Subject: [PATCH] arm64: ilp32: uapi: keep the HWCAP2 bits 32 and up in range
+
+<asm/hwcap.h> defines the HWCAP2 bits 32 to 63 as (1UL << n). unsigned
+long is 32-bit for ILP32, so these shifts overflow there.
+
+Define them as __AARCH64_HWCAP64(n): 1UL for LP64, as before, and 1ULL
+for ILP32. ILP32 cannot see these bits through getauxval(), as the entries
+of its auxiliary vector are 32-bit, but the values stay correct.
+
+The <bits/hwcap.h> of the ILP32 glibc port uses the same macro with the
+same definition, so a program can include both headers without
+redefinition warnings.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/include/uapi/asm/hwcap.h | 75 +++++++++++++++++------------
+ 1 file changed, 43 insertions(+), 32 deletions(-)
+
+--- a/arch/arm64/include/uapi/asm/hwcap.h
++++ b/arch/arm64/include/uapi/asm/hwcap.h
+@@ -18,6 +18,17 @@
+ #define _UAPI__ASM_HWCAP_H
+ 
+ /*
++ * Bits 32 and up. unsigned long is 32-bit for ILP32; there these bits cannot be seen
++ * through the 32-bit entries of the auxiliary vector, but the values stay in range.
++ * The same definition as glibc's <bits/hwcap.h>.
++ */
++#ifdef __LP64__
++#define __AARCH64_HWCAP64(n)	(1UL << (n))
++#else
++#define __AARCH64_HWCAP64(n)	(1ULL << (n))
++#endif
++
++/*
+  * HWCAP flags - for AT_HWCAP
+  *
+  * Bits 62 and 63 are reserved for use by libc.
+@@ -91,37 +102,37 @@
+ #define HWCAP2_SME_F32F32	(1 << 29)
+ #define HWCAP2_SME_FA64		(1 << 30)
+ #define HWCAP2_WFXT		(1UL << 31)
+-#define HWCAP2_EBF16		(1UL << 32)
+-#define HWCAP2_SVE_EBF16	(1UL << 33)
+-#define HWCAP2_CSSC		(1UL << 34)
+-#define HWCAP2_RPRFM		(1UL << 35)
+-#define HWCAP2_SVE2P1		(1UL << 36)
+-#define HWCAP2_SME2		(1UL << 37)
+-#define HWCAP2_SME2P1		(1UL << 38)
+-#define HWCAP2_SME_I16I32	(1UL << 39)
+-#define HWCAP2_SME_BI32I32	(1UL << 40)
+-#define HWCAP2_SME_B16B16	(1UL << 41)
+-#define HWCAP2_SME_F16F16	(1UL << 42)
+-#define HWCAP2_MOPS		(1UL << 43)
+-#define HWCAP2_HBC		(1UL << 44)
+-#define HWCAP2_SVE_B16B16	(1UL << 45)
+-#define HWCAP2_LRCPC3		(1UL << 46)
+-#define HWCAP2_LSE128		(1UL << 47)
+-#define HWCAP2_FPMR		(1UL << 48)
+-#define HWCAP2_LUT		(1UL << 49)
+-#define HWCAP2_FAMINMAX		(1UL << 50)
+-#define HWCAP2_F8CVT		(1UL << 51)
+-#define HWCAP2_F8FMA		(1UL << 52)
+-#define HWCAP2_F8DP4		(1UL << 53)
+-#define HWCAP2_F8DP2		(1UL << 54)
+-#define HWCAP2_F8E4M3		(1UL << 55)
+-#define HWCAP2_F8E5M2		(1UL << 56)
+-#define HWCAP2_SME_LUTV2	(1UL << 57)
+-#define HWCAP2_SME_F8F16	(1UL << 58)
+-#define HWCAP2_SME_F8F32	(1UL << 59)
+-#define HWCAP2_SME_SF8FMA	(1UL << 60)
+-#define HWCAP2_SME_SF8DP4	(1UL << 61)
+-#define HWCAP2_SME_SF8DP2	(1UL << 62)
+-#define HWCAP2_POE		(1UL << 63)
++#define HWCAP2_EBF16		__AARCH64_HWCAP64 (32)
++#define HWCAP2_SVE_EBF16	__AARCH64_HWCAP64 (33)
++#define HWCAP2_CSSC		__AARCH64_HWCAP64 (34)
++#define HWCAP2_RPRFM		__AARCH64_HWCAP64 (35)
++#define HWCAP2_SVE2P1		__AARCH64_HWCAP64 (36)
++#define HWCAP2_SME2		__AARCH64_HWCAP64 (37)
++#define HWCAP2_SME2P1		__AARCH64_HWCAP64 (38)
++#define HWCAP2_SME_I16I32	__AARCH64_HWCAP64 (39)
++#define HWCAP2_SME_BI32I32	__AARCH64_HWCAP64 (40)
++#define HWCAP2_SME_B16B16	__AARCH64_HWCAP64 (41)
++#define HWCAP2_SME_F16F16	__AARCH64_HWCAP64 (42)
++#define HWCAP2_MOPS		__AARCH64_HWCAP64 (43)
++#define HWCAP2_HBC		__AARCH64_HWCAP64 (44)
++#define HWCAP2_SVE_B16B16	__AARCH64_HWCAP64 (45)
++#define HWCAP2_LRCPC3		__AARCH64_HWCAP64 (46)
++#define HWCAP2_LSE128		__AARCH64_HWCAP64 (47)
++#define HWCAP2_FPMR		__AARCH64_HWCAP64 (48)
++#define HWCAP2_LUT		__AARCH64_HWCAP64 (49)
++#define HWCAP2_FAMINMAX		__AARCH64_HWCAP64 (50)
++#define HWCAP2_F8CVT		__AARCH64_HWCAP64 (51)
++#define HWCAP2_F8FMA		__AARCH64_HWCAP64 (52)
++#define HWCAP2_F8DP4		__AARCH64_HWCAP64 (53)
++#define HWCAP2_F8DP2		__AARCH64_HWCAP64 (54)
++#define HWCAP2_F8E4M3		__AARCH64_HWCAP64 (55)
++#define HWCAP2_F8E5M2		__AARCH64_HWCAP64 (56)
++#define HWCAP2_SME_LUTV2	__AARCH64_HWCAP64 (57)
++#define HWCAP2_SME_F8F16	__AARCH64_HWCAP64 (58)
++#define HWCAP2_SME_F8F32	__AARCH64_HWCAP64 (59)
++#define HWCAP2_SME_SF8FMA	__AARCH64_HWCAP64 (60)
++#define HWCAP2_SME_SF8DP4	__AARCH64_HWCAP64 (61)
++#define HWCAP2_SME_SF8DP2	__AARCH64_HWCAP64 (62)
++#define HWCAP2_POE		__AARCH64_HWCAP64 (63)
+ 
+ #endif /* _UAPI__ASM_HWCAP_H */

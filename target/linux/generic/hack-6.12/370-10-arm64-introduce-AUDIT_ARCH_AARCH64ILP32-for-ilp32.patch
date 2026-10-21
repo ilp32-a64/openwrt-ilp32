@@ -1,0 +1,53 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yury Norov <ynorov@marvell.com>
+Date: Mon, 27 Nov 2023 20:40:12 +0800
+Subject: [PATCH] arm64: introduce AUDIT_ARCH_AARCH64ILP32 for ilp32
+
+maillist inclusion
+category: feature
+bugzilla: https://gitee.com/openeuler/kernel/issues/I8JVJ3
+CVE: NA
+
+Reference: https://github.com/norov/linux/commits/ilp32-5.2
+
+--------------------------------
+
+syscall_get_arch() currently makes no difference between arm64 and
+arm64/ilp32. Fix it by adding AUDIT_ARCH_AARCH64ILP32.
+
+Reported-by: Andy Lutomirski <luto@amacapital.net>
+Signed-off-by: Yury Norov <ynorov@marvell.com>
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Acked-by: Xie XiuQi <xiexiuqi@huawei.com>
+Signed-off-by: Chen Jun <chenjun102@huawei.com>
+Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit 6d93c591a802f72672c9c83c3bb0c7bc010c71db)
+---
+ arch/arm64/include/asm/syscall.h | 3 +++
+ include/uapi/linux/audit.h       | 1 +
+ 2 files changed, 4 insertions(+)
+
+--- a/arch/arm64/include/asm/syscall.h
++++ b/arch/arm64/include/asm/syscall.h
+@@ -82,6 +82,9 @@ static inline int syscall_get_arch(struc
+ 	if (is_a32_compat_thread(task_thread_info(task)))
+ 		return AUDIT_ARCH_ARM;
+ 
++	else if (is_ilp32_compat_task())
++		return AUDIT_ARCH_AARCH64ILP32;
++
+ 	return AUDIT_ARCH_AARCH64;
+ }
+ 
+--- a/include/uapi/linux/audit.h
++++ b/include/uapi/linux/audit.h
+@@ -389,6 +389,7 @@ enum {
+ #define __AUDIT_ARCH_LE	   0x40000000
+ 
+ #define AUDIT_ARCH_AARCH64	(EM_AARCH64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
++#define AUDIT_ARCH_AARCH64ILP32	(EM_AARCH64|__AUDIT_ARCH_LE)
+ #define AUDIT_ARCH_ALPHA	(EM_ALPHA|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
+ #define AUDIT_ARCH_ARCOMPACT	(EM_ARCOMPACT|__AUDIT_ARCH_LE)
+ #define AUDIT_ARCH_ARCOMPACTBE	(EM_ARCOMPACT)

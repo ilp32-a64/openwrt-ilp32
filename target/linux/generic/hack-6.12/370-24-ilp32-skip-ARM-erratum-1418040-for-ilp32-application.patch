@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Date: Mon, 27 Nov 2023 20:40:26 +0800
+Subject: [PATCH] ilp32: skip ARM erratum 1418040 for ilp32 application
+
+hulk inclusion
+category: feature
+bugzilla: https://gitee.com/openeuler/kernel/issues/I8JVJ3
+CVE: NA
+
+--------------------------------
+
+ARM erratum 1418040 only affect AARCH32. ILP32 is not affected.
+
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@hauwei.com>
+Acked-by: Xie XiuQi <xiexiuqi@huawei.com>
+Signed-off-by: Chen Jun <chenjun102@huawei.com>
+Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit b56be86bcf512b7d26b3ba5a5174ef148d9aad9b)
+[6.12: the erratum 1418040 check is in update_cntkctl_el1() in 6.12]
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/kernel/process.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/arch/arm64/kernel/process.c
++++ b/arch/arm64/kernel/process.c
+@@ -500,7 +500,7 @@ static void update_cntkctl_el1(struct ta
+ 	    has_erratum_handler(read_cntvct_el0) ||
+ 	    (IS_ENABLED(CONFIG_ARM64_ERRATUM_1418040) &&
+ 	     this_cpu_has_cap(ARM64_WORKAROUND_1418040) &&
+-	     is_compat_thread(ti)))
++	     is_a32_compat_thread(ti)))
+ 		sysreg_clear_set(cntkctl_el1, ARCH_TIMER_USR_VCT_ACCESS_EN, 0);
+ 	else
+ 		sysreg_clear_set(cntkctl_el1, 0, ARCH_TIMER_USR_VCT_ACCESS_EN);

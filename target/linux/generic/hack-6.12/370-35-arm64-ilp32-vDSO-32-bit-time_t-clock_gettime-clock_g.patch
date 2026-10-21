@@ -1,0 +1,187 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 12:22:47 +0800
+Subject: [PATCH] arm64: ilp32: vDSO: 32-bit time_t clock_gettime/clock_getres,
+ add clock_gettime64
+
+The ILP32 vDSO was built from the LP64 vgettimeofday.c, so
+__kernel_clock_gettime() and __kernel_clock_getres() wrote a 16-byte
+struct __kernel_timespec. ILP32 user space (glibc arm/ilp32) has a 32-bit
+time_t and passes an 8-byte struct timespec, like the time32 system calls
+of the ILP32 table: the vDSO returned whole seconds only (tv_nsec read the
+upper half of tv_sec) and overwrote the next 8 bytes of the caller's stack.
+The syscall fallbacks also used the time32 numbers (113/114) with a 64-bit
+structure.
+
+Build the ILP32 vDSO from its own vgettimeofday.c, as the AArch32 vDSO does:
+clock_gettime() and clock_getres() use struct old_timespec32 (lib/vdso
+BUILD_VDSO32, time32 fallbacks 113/114), and a new __kernel_clock_gettime64()
+uses struct __kernel_timespec with the clock_gettime64 fallback (403);
+clock_getres() 64-bit fallback is clock_getres_time64 (406). LP64 and AArch32
+builds are unchanged (the ILP32 parts are under __aarch64__ && __ILP32__).
+
+Found with a QEMU test comparing vDSO and system call time over a sleep.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+(cherry picked from commit b90a9eb8cfa00778b80fe24f2047512469a78b3d)
+(cherry picked from commit e3e2a3301c52471f68bf18bbfcb7ba09761cd3b5)
+[6.12.y: vgettimeofday-ilp32.o gets $(CONFIG_CC_OPT_INLINE_MEMSET) like
+ the LP64 vDSO objects (3a10517dbce1 in 6.12.y)]
+---
+ arch/arm64/include/asm/vdso/gettimeofday.h    | 52 ++++++++++++++++++-
+ arch/arm64/kernel/vdso-ilp32/Makefile         |  6 ++-
+ arch/arm64/kernel/vdso-ilp32/vdso-ilp32.lds.S |  1 +
+ arch/arm64/kernel/vdso-ilp32/vgettimeofday.c  | 33 ++++++++++++
+ 4 files changed, 89 insertions(+), 3 deletions(-)
+ create mode 100644 arch/arm64/kernel/vdso-ilp32/vgettimeofday.c
+
+--- a/arch/arm64/include/asm/vdso/gettimeofday.h
++++ b/arch/arm64/include/asm/vdso/gettimeofday.h
+@@ -14,6 +14,19 @@
+ 
+ #define VDSO_HAS_CLOCK_GETRES		1
+ 
++#if defined(__aarch64__) && defined(__ILP32__)
++/*
++ * ILP32 vDSO: ILP32 tasks use the asm-generic system call table with a 32-bit
++ * time_t, so __NR_clock_gettime/__NR_clock_getres are the time32 calls; the
++ * 64-bit time versions are clock_gettime64 (403) and clock_getres_time64 (406).
++ */
++#define VDSO_NR_CLOCK_GETTIME		403
++#define VDSO_NR_CLOCK_GETRES		406
++#else
++#define VDSO_NR_CLOCK_GETTIME		__NR_clock_gettime
++#define VDSO_NR_CLOCK_GETRES		__NR_clock_getres
++#endif
++
+ static __always_inline
+ int gettimeofday_fallback(struct __kernel_old_timeval *_tv,
+ 			  struct timezone *_tz)
+@@ -38,7 +51,7 @@ long clock_gettime_fallback(clockid_t _c
+ 	register struct __kernel_timespec *ts asm("x1") = _ts;
+ 	register clockid_t clkid asm("x0") = _clkid;
+ 	register long ret asm ("x0");
+-	register long nr asm("x8") = __NR_clock_gettime;
++	register long nr asm("x8") = VDSO_NR_CLOCK_GETTIME;
+ 
+ 	asm volatile(
+ 	"       svc #0\n"
+@@ -55,6 +68,42 @@ int clock_getres_fallback(clockid_t _clk
+ 	register struct __kernel_timespec *ts asm("x1") = _ts;
+ 	register clockid_t clkid asm("x0") = _clkid;
+ 	register long ret asm ("x0");
++	register long nr asm("x8") = VDSO_NR_CLOCK_GETRES;
++
++	asm volatile(
++	"       svc #0\n"
++	: "=r" (ret)
++	: "r" (clkid), "r" (ts), "r" (nr)
++	: "memory");
++
++	return ret;
++}
++
++#if defined(__aarch64__) && defined(__ILP32__)
++/* time32 fallbacks for the ILP32 vDSO (lib/vdso BUILD_VDSO32) */
++static __always_inline
++int clock_gettime32_fallback(clockid_t _clkid, struct old_timespec32 *_ts)
++{
++	register struct old_timespec32 *ts asm("x1") = _ts;
++	register clockid_t clkid asm("x0") = _clkid;
++	register long ret asm ("x0");
++	register long nr asm("x8") = __NR_clock_gettime;
++
++	asm volatile(
++	"       svc #0\n"
++	: "=r" (ret)
++	: "r" (clkid), "r" (ts), "r" (nr)
++	: "memory");
++
++	return ret;
++}
++
++static __always_inline
++int clock_getres32_fallback(clockid_t _clkid, struct old_timespec32 *_ts)
++{
++	register struct old_timespec32 *ts asm("x1") = _ts;
++	register clockid_t clkid asm("x0") = _clkid;
++	register long ret asm ("x0");
+ 	register long nr asm("x8") = __NR_clock_getres;
+ 
+ 	asm volatile(
+@@ -65,6 +114,7 @@ int clock_getres_fallback(clockid_t _clk
+ 
+ 	return ret;
+ }
++#endif
+ 
+ static __always_inline u64 __arch_get_hw_counter(s32 clock_mode,
+ 						 const struct vdso_data *vd)
+--- a/arch/arm64/kernel/vdso-ilp32/Makefile
++++ b/arch/arm64/kernel/vdso-ilp32/Makefile
+@@ -45,7 +45,9 @@ UBSAN_SANITIZE			:= n
+ OBJECT_FILES_NON_STANDARD	:= y
+ KCOV_INSTRUMENT			:= n
+ 
+-CFLAGS_vgettimeofday-ilp32.o = -O2 -mcmodel=tiny -fasynchronous-unwind-tables -mabi=ilp32
++# BUILD_VDSO32: the time32 functions of lib/vdso (ILP32 has a 32-bit time_t)
++CFLAGS_vgettimeofday-ilp32.o = -O2 -mcmodel=tiny -fasynchronous-unwind-tables -mabi=ilp32 -DBUILD_VDSO32 \
++			      $(CONFIG_CC_OPT_INLINE_MEMSET)
+ 
+ ifneq ($(c-gettimeofday-y),)
+   CFLAGS_vgettimeofday-ilp32.o += -include $(c-gettimeofday-y)
+@@ -88,7 +90,7 @@ quiet_cmd_vdsosym = VDSOSYM $@
+ include/generated/vdso-ilp32-offsets.h: $(obj)/vdso-ilp32.so.dbg FORCE
+ 	$(call if_changed,vdsosym)
+ 
+-$(obj)/vgettimeofday-ilp32.o: $(src)/../vdso/vgettimeofday.c
++$(obj)/vgettimeofday-ilp32.o: $(src)/vgettimeofday.c
+ 	$(call if_changed_dep,vdso-ilp32cc)
+ 
+ $(obj)/note-ilp32.o: $(src)/../vdso/note.S
+--- a/arch/arm64/kernel/vdso-ilp32/vdso-ilp32.lds.S
++++ b/arch/arm64/kernel/vdso-ilp32/vdso-ilp32.lds.S
+@@ -77,6 +77,7 @@ VERSION
+ 		__kernel_rt_sigreturn;
+ 		__kernel_gettimeofday;
+ 		__kernel_clock_gettime;
++		__kernel_clock_gettime64;
+ 		__kernel_clock_getres;
+ 	local: *;
+ 	};
+--- /dev/null
++++ b/arch/arm64/kernel/vdso-ilp32/vgettimeofday.c
+@@ -0,0 +1,33 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * ARM64 ILP32 userspace implementations of gettimeofday() and similar.
++ *
++ * ILP32 user space has a 32-bit time_t (like AArch32): clock_gettime() and
++ * clock_getres() take a struct old_timespec32, as the time32 system calls of
++ * the ILP32 table do. clock_gettime64() is there for 64-bit time_t users.
++ * Based on arch/arm64/kernel/vdso32/vgettimeofday.c.
++ */
++/*
++ * No includes: lib/vdso/gettimeofday.c is included by the Makefile (-include), as for
++ * the LP64 vDSO; kernel headers do not build with -mabi=ilp32.
++ */
++
++int __kernel_clock_gettime(clockid_t clock, struct old_timespec32 *ts)
++{
++	return __cvdso_clock_gettime32(clock, ts);
++}
++
++int __kernel_clock_gettime64(clockid_t clock, struct __kernel_timespec *ts)
++{
++	return __cvdso_clock_gettime(clock, ts);
++}
++
++int __kernel_gettimeofday(struct __kernel_old_timeval *tv, struct timezone *tz)
++{
++	return __cvdso_gettimeofday(tv, tz);
++}
++
++int __kernel_clock_getres(clockid_t clock_id, struct old_timespec32 *res)
++{
++	return __cvdso_clock_getres_time32(clock_id, res);
++}

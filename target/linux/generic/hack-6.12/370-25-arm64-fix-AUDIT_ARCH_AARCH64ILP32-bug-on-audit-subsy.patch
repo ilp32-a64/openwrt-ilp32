@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Chen Jiahao <chenjiahao16@huawei.com>
+Date: Mon, 27 Nov 2023 20:40:27 +0800
+Subject: [PATCH] arm64: fix AUDIT_ARCH_AARCH64ILP32 bug on audit subsystem
+
+hulk inclusion
+category: bugfix
+bugzilla: 174525 https://gitee.com/openeuler/kernel/issues/I8JVJ3
+
+--------
+
+In arm64be_ilp32 platform, audit could not record log in some case, because
+syscall_get_arch() in arch/arm64 returns AUDIT_ARCH_AARCH64ILP32, which
+fits the arm32 platform. Audit will gets a fault arch in this
+situation and hence mismatch some syscall numbers in audit_match_perm().
+
+This patch fixes it, and use the arch AUDIT_ARCH_AARCH64 which matches
+all syscall numbers in arm64be_ilp32 platform.
+
+Fixes: 0fe4141ba63a ("[Backport] arm64: introduce AUDIT_ARCH_AARCH64ILP32 for ilp32")
+Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+Reviewed-by: Liao Chang <liaochang1@huawei.com>
+Signed-off-by: Chen Jun <chenjun102@huawei.com>
+Signed-off-by: Zheng Zengkai <zhengzengkai@huawei.com>
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit 4636f35f33d9f87e47ded59b491150742a0f043f)
+---
+ arch/arm64/include/asm/syscall.h | 3 ---
+ include/uapi/linux/audit.h       | 1 -
+ 2 files changed, 4 deletions(-)
+
+--- a/arch/arm64/include/asm/syscall.h
++++ b/arch/arm64/include/asm/syscall.h
+@@ -86,9 +86,6 @@ static inline int syscall_get_arch(struc
+ 	if (is_a32_compat_thread(task_thread_info(task)))
+ 		return AUDIT_ARCH_ARM;
+ 
+-	else if (is_ilp32_compat_task())
+-		return AUDIT_ARCH_AARCH64ILP32;
+-
+ 	return AUDIT_ARCH_AARCH64;
+ }
+ 
+--- a/include/uapi/linux/audit.h
++++ b/include/uapi/linux/audit.h
+@@ -389,7 +389,6 @@ enum {
+ #define __AUDIT_ARCH_LE	   0x40000000
+ 
+ #define AUDIT_ARCH_AARCH64	(EM_AARCH64|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
+-#define AUDIT_ARCH_AARCH64ILP32	(EM_AARCH64|__AUDIT_ARCH_LE)
+ #define AUDIT_ARCH_ALPHA	(EM_ALPHA|__AUDIT_ARCH_64BIT|__AUDIT_ARCH_LE)
+ #define AUDIT_ARCH_ARCOMPACT	(EM_ARCOMPACT|__AUDIT_ARCH_LE)
+ #define AUDIT_ARCH_ARCOMPACTBE	(EM_ARCOMPACT)

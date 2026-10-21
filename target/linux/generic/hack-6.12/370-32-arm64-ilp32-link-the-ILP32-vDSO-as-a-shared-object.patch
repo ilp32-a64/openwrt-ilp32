@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Sat, 17 Oct 2026 18:05:36 +0800
+Subject: [PATCH] arm64: ilp32: link the ILP32 vDSO as a shared object
+
+The ILP32 vDSO is linked with $(CC), and -shared is not in its flags
+(the 5.10 vDSO Makefile moved -shared to ldflags-y, which this rule does
+not use). The result is an ET_EXEC image without a dynamic section or
+dynamic symbols, so the C library cannot look up __kernel_clock_gettime
+and friends; only the sigreturn trampoline (found via generated offsets)
+works.
+
+Pass -shared to the link command, as the LP64 vDSO does.
+
+The same Makefile is in openEuler OLK-5.10 and OLK-6.6.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+(cherry picked from commit 6a4be298de47d90774d74afac54c6749ffe44c61)
+(cherry picked from commit 71ab6f7221dffa0f6b5654c458421e9c15e08b58)
+---
+ arch/arm64/kernel/vdso-ilp32/Makefile | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+--- a/arch/arm64/kernel/vdso-ilp32/Makefile
++++ b/arch/arm64/kernel/vdso-ilp32/Makefile
+@@ -99,7 +99,7 @@ $(obj)/sigreturn-ilp32.o: $(src)/../vdso
+ 
+ # Actual build commands
+ quiet_cmd_vdso-ilp32ld_and_vdso_check = LD      $@
+-      cmd_vdso-ilp32ld_and_vdso_check = $(CC) $(c_flags) -mabi=ilp32 -Wl,-n -Wl,-T $^ -o $@
++      cmd_vdso-ilp32ld_and_vdso_check = $(CC) $(c_flags) -mabi=ilp32 -shared -Wl,-n -Wl,-T $^ -o $@
+ quiet_cmd_vdso-ilp32cc = VDSOILP32C $@
+       cmd_vdso-ilp32cc= $(CC) $(c_flags) -mabi=ilp32 -c -o $@ $<
+ quiet_cmd_vdso-ilp32as = VDSOILP32A $@

@@ -1,0 +1,54 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Date: Mon, 27 Nov 2023 20:40:29 +0800
+Subject: [PATCH] ilp32: fix compile problem when ARM64_ILP32 and UBSAN are
+ both enabled
+
+hulk inclusion
+category: bugfix
+bugzilla: https://gitee.com/openeuler/kernel/issues/I8JVJ3
+CVE: NA
+
+----------------------------------------
+
+When I enable CONFIG_ARM64_ILP32 and CONFIG_UBSAN, I got the following
+compile error. We need to disable UBSAN for 'vdso-ilp32' like commit
+ab2a69eee74d ("Fix compile problem when CONFIG_KASAN and CONFIG_UBSAN were
+on")
+
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+`.data' referenced in section `.text' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o: defined in discarded section `.data' of arch/arm64/kernel/vdso-ilp32/gettimeofday-ilp32.o
+
+Signed-off-by: Wei Li <liwei391@huawei.com>
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Reviewed-by: Hanjun Guo <guohanjun@huawei.com>
+Signed-off-by: Yang Yingliang <yangyingliang@huawei.com>
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Reviewed-by: Cheng Jian <cj.chengjian@huawei.com>
+Signed-off-by: Zheng Zengkai <zhengzengkai@huawei.com>
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit 2d3209d19a432e475ecf855b4cd6eba8e3e47e49)
+---
+ arch/arm64/kernel/vdso-ilp32/Makefile | 3 +++
+ 1 file changed, 3 insertions(+)
+
+--- a/arch/arm64/kernel/vdso-ilp32/Makefile
++++ b/arch/arm64/kernel/vdso-ilp32/Makefile
+@@ -60,6 +60,9 @@ endif
+ 
+ # Disable gcov profiling for VDSO code
+ GCOV_PROFILE := n
++KASAN_SANITIZE := n
++UBSAN_SANITIZE := n
++KCOV_INSTRUMENT := n
+ 
+ obj-y += vdso-ilp32.o
+ extra-y += vdso-ilp32.lds

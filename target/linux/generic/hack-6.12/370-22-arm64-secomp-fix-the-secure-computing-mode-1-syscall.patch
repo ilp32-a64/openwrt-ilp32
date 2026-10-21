@@ -1,0 +1,86 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Date: Mon, 27 Nov 2023 20:40:24 +0800
+Subject: [PATCH] arm64: secomp: fix the secure computing mode 1 syscall check
+ for ilp32
+
+hulk inclusion
+category: bugfix
+bugzilla: https://gitee.com/openeuler/kernel/issues/I8JVJ3
+CVE: NA
+
+--------------------------------
+
+ILP32 application belongs to the compat application. But its syscall
+number is different from the traditional compat a32 application. The
+syscall number is the same with the lp64 application. So we need to fix
+the secure computing mode 1 syscall check for ilp32.
+
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
+Reviewed-by: Hanjun Guo <guohanjun@huawei.com>
+Signed-off-by: Yang Yingliang <yangyingliang@huawei.com>
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Acked-by: Xie XiuQi <xiexiuqi@huawei.com>
+Signed-off-by: Chen Jun <chenjun102@huawei.com>
+Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit dc74dbfd414f2cd43573bf353800030f75edd554)
+[6.12: the AArch32 list uses the __NR_seccomp_*_32 numbers of
+ asm/seccomp.h: 6.12 renamed __NR_compat_* to __NR_compat32_*, and like
+ upstream AArch32 strict mode allows rt_sigreturn (the list had
+ sigreturn); includes asm/unistd.h for the native numbers of the ILP32
+ list]
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/include/asm/seccomp.h | 31 +++++++++++++++++++++++++++++++
+ 1 file changed, 31 insertions(+)
+
+--- a/arch/arm64/include/asm/seccomp.h
++++ b/arch/arm64/include/asm/seccomp.h
+@@ -8,6 +8,7 @@
+ #ifndef _ASM_SECCOMP_H
+ #define _ASM_SECCOMP_H
+ 
++#include <asm/unistd.h>
+ #include <asm/unistd_compat_32.h>
+ 
+ #ifdef CONFIG_AARCH32_EL0
+@@ -17,6 +18,36 @@
+ #define __NR_seccomp_sigreturn_32	__NR_compat32_rt_sigreturn
+ #endif /* CONFIG_AARCH32_EL0 */
+ 
++#ifdef CONFIG_COMPAT
++#ifndef __COMPAT_SYSCALL_NR
++
++static inline const int *get_compat_mode1_syscalls(void)
++{
++#ifdef CONFIG_AARCH32_EL0
++	static const int mode1_syscalls_a32[] = {
++		__NR_seccomp_read_32, __NR_seccomp_write_32,
++		__NR_seccomp_exit_32, __NR_seccomp_sigreturn_32,
++		0, /* null terminated */
++	};
++#endif
++	static const int mode1_syscalls_ilp32[] = {
++		__NR_read, __NR_write,
++		__NR_exit, __NR_rt_sigreturn,
++		0, /* null terminated */
++	};
++
++#ifdef CONFIG_AARCH32_EL0
++	if (is_a32_compat_task())
++		return mode1_syscalls_a32;
++#endif
++	return mode1_syscalls_ilp32;
++}
++
++#define get_compat_mode1_syscalls get_compat_mode1_syscalls
++
++#endif
++#endif
++
+ #include <asm-generic/seccomp.h>
+ 
+ #define SECCOMP_ARCH_NATIVE		AUDIT_ARCH_AARCH64

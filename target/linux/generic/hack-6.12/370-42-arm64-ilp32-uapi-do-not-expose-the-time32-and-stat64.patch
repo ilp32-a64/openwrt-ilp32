@@ -1,0 +1,80 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Wed, 21 Oct 2026 22:17:42 +0800
+Subject: [PATCH] arm64: ilp32: uapi: do not expose the time32 and stat64
+ syscall numbers
+
+The ILP32 syscall table has the time32 and stat64 calls (syscall_abis_ilp32
+has time32 and stat64), and <asm/unistd.h> exposes them under the plain
+names: __NR_futex, __NR_clock_gettime, __NR_ppoll, __NR_fstat64 and so on.
+
+A C library with a 64-bit time_t (glibc 2.41, musl 1.2.5) uses the
+*_time64 calls, but a program that calls syscall(SYS_futex, ...) or
+syscall(SYS_clock_gettime, ...) itself passes a 64-bit struct timespec to
+the time32 call and goes wrong without any error. riscv32 and arc do not
+have these names, so such programs fail to build there instead.
+
+Keep the calls in the table, as binaries built with a 32-bit time_t
+(glibc 2.30) still need them, but do not expose the 26 time32 and the 2
+stat64 numbers to ILP32 user space. The *_time64 numbers and statx stay.
+__ILP32_WANT_TIME32_SYSCALLS gets them back, e.g. to build a C library
+with a 32-bit time_t. The kernel itself keeps them: the ILP32 vDSO falls
+back to the time32 clock_gettime, clock_getres and gettimeofday calls.
+
+LP64 and AArch32 are not changed.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/include/uapi/asm/unistd.h | 41 ++++++++++++++++++++++++++++
+ 1 file changed, 41 insertions(+)
+
+--- a/arch/arm64/include/uapi/asm/unistd.h
++++ b/arch/arm64/include/uapi/asm/unistd.h
+@@ -8,6 +8,47 @@
+  */
+ #undef __NR_sync_file_range
+ #define __NR_sync_file_range2 84
++
++/*
++ * The syscall table keeps the time32 and stat64 calls for binaries built with a 32-bit
++ * time_t (glibc 2.30). User space with a 64-bit time_t must use the *_time64 calls and
++ * statx instead, so the plain names are not exposed, as on riscv32: passing a 64-bit
++ * struct timespec to them would go wrong silently. Define __ILP32_WANT_TIME32_SYSCALLS
++ * to get them, e.g. to build a C library with a 32-bit time_t. The kernel (the ILP32
++ * vDSO fallbacks) uses them.
++ */
++#ifndef __KERNEL__
++#ifndef __ILP32_WANT_TIME32_SYSCALLS
++#undef __NR_io_getevents
++#undef __NR_pselect6
++#undef __NR_ppoll
++#undef __NR_fstatat64
++#undef __NR_fstat64
++#undef __NR_timerfd_settime
++#undef __NR_timerfd_gettime
++#undef __NR_utimensat
++#undef __NR_futex
++#undef __NR_nanosleep
++#undef __NR_timer_gettime
++#undef __NR_timer_settime
++#undef __NR_clock_settime
++#undef __NR_clock_gettime
++#undef __NR_clock_getres
++#undef __NR_clock_nanosleep
++#undef __NR_sched_rr_get_interval
++#undef __NR_rt_sigtimedwait
++#undef __NR_gettimeofday
++#undef __NR_settimeofday
++#undef __NR_adjtimex
++#undef __NR_mq_timedsend
++#undef __NR_mq_timedreceive
++#undef __NR_semtimedop
++#undef __NR_recvmmsg
++#undef __NR_wait4
++#undef __NR_clock_adjtime
++#undef __NR_io_pgetevents
++#endif
++#endif
+ #else
+ #include <asm/unistd_64.h>
+ #endif

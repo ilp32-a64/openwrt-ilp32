@@ -1,0 +1,33 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Sun, 18 Oct 2026 08:41:33 +0800
+Subject: [PATCH] arm64: ilp32: vDSO: data page is two pages below the code
+
+Since the time namespace support the vvar area has two pages (vDSO data, then
+the time namespace page), and the vDSO code finds its data at
+". - __VVAR_PAGES * PAGE_SIZE", as the LP64 and AArch32 vDSOs do. The ILP32
+linker script still had the older "_vdso_data = . - PAGE_SIZE" in front of
+the new definition, and the first PROVIDE wins: _vdso_data was 0xfffff000
+instead of 0xffffe000, so every vDSO call read the time namespace page and,
+without a time namespace, got SIGBUS (e.g. clock_gettime() in glibc).
+
+Remove the old line. Found in QEMU; the same line is in openEuler
+OLK-5.10 and OLK-6.6.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+(cherry picked from commit 5481775506b69b1dab1ed519fcec935b12ab3ead)
+(cherry picked from commit 52fad911f2dd7cbccd492a8792406d18b9370e61)
+---
+ arch/arm64/kernel/vdso-ilp32/vdso-ilp32.lds.S | 1 -
+ 1 file changed, 1 deletion(-)
+
+--- a/arch/arm64/kernel/vdso-ilp32/vdso-ilp32.lds.S
++++ b/arch/arm64/kernel/vdso-ilp32/vdso-ilp32.lds.S
+@@ -14,7 +14,6 @@
+ 
+ SECTIONS
+ {
+-	PROVIDE(_vdso_data = . - PAGE_SIZE);
+ 	PROVIDE(_vdso_data = . - __VVAR_PAGES * PAGE_SIZE);
+ #ifdef CONFIG_TIME_NS
+ 	PROVIDE(_timens_data = _vdso_data + PAGE_SIZE);

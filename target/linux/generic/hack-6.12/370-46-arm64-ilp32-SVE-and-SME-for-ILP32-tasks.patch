@@ -1,0 +1,104 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Thu, 22 Oct 2026 20:16:32 +0800
+Subject: [PATCH] arm64: ilp32: SVE and SME for ILP32 tasks
+
+ILP32 tasks run AArch64 code and get the SVE and SME hwcaps
+(cpu_get_elf_hwcap()), but the SVE and SME code refused them as compat
+tasks:
+
+- do_sve_acc() and do_sme_acc() warned and sent SIGILL on the first SVE
+  or SME instruction. A C library that picks SVE string functions by
+  HWCAP_SVE (glibc 2.41) made every ILP32 program die with SIGILL on a
+  CPU with SVE.
+- PR_SVE_SET_VL, PR_SVE_GET_VL, PR_SME_SET_VL and PR_SME_GET_VL returned
+  -EINVAL.
+- tls_preserve_current_state() did not save TPIDR2_EL0, which
+  tls_thread_switch() restores, so an ILP32 task lost TPIDR2 at a
+  context switch.
+
+Refuse only AArch32 tasks there: is_a32_compat_task(). The signal frame
+code (signal_common.h) and the ptrace SVE, SSVE and ZA regsets are shared
+with LP64 and already handle ILP32 tasks.
+
+Tested on QEMU -cpu max (SVE, vector lengths up to 256 bytes): ILP32
+programs built with GCC 14 and glibc 2.41 run (they died with SIGILL
+before), and an ILP32 test passes as the same LP64 one: the SVE registers
+are in the signal frame and back after sigreturn, at vector lengths 64
+and 16; PR_SVE_GET_VL and PR_SVE_SET_VL; ptrace NT_ARM_SVE.
+ARM64_SME depends on BROKEN in 6.12.y, so the SME parts are not built
+here and were not tested.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/kernel/fpsimd.c  | 12 ++++++------
+ arch/arm64/kernel/process.c |  2 +-
+ 2 files changed, 7 insertions(+), 7 deletions(-)
+
+--- a/arch/arm64/kernel/fpsimd.c
++++ b/arch/arm64/kernel/fpsimd.c
+@@ -957,7 +957,7 @@ int sve_set_current_vl(unsigned long arg
+ 	vl = arg & PR_SVE_VL_LEN_MASK;
+ 	flags = arg & ~vl;
+ 
+-	if (!system_supports_sve() || is_compat_task())
++	if (!system_supports_sve() || is_a32_compat_task())
+ 		return -EINVAL;
+ 
+ 	ret = vec_set_vector_length(current, ARM64_VEC_SVE, vl, flags);
+@@ -970,7 +970,7 @@ int sve_set_current_vl(unsigned long arg
+ /* PR_SVE_GET_VL */
+ int sve_get_current_vl(void)
+ {
+-	if (!system_supports_sve() || is_compat_task())
++	if (!system_supports_sve() || is_a32_compat_task())
+ 		return -EINVAL;
+ 
+ 	return vec_prctl_status(ARM64_VEC_SVE, 0);
+@@ -986,7 +986,7 @@ int sme_set_current_vl(unsigned long arg
+ 	vl = arg & PR_SME_VL_LEN_MASK;
+ 	flags = arg & ~vl;
+ 
+-	if (!system_supports_sme() || is_compat_task())
++	if (!system_supports_sme() || is_a32_compat_task())
+ 		return -EINVAL;
+ 
+ 	ret = vec_set_vector_length(current, ARM64_VEC_SME, vl, flags);
+@@ -999,7 +999,7 @@ int sme_set_current_vl(unsigned long arg
+ /* PR_SME_GET_VL */
+ int sme_get_current_vl(void)
+ {
+-	if (!system_supports_sme() || is_compat_task())
++	if (!system_supports_sme() || is_a32_compat_task())
+ 		return -EINVAL;
+ 
+ 	return vec_prctl_status(ARM64_VEC_SME, 0);
+@@ -1388,7 +1388,7 @@ static void sve_init_regs(void)
+ void do_sve_acc(unsigned long esr, struct pt_regs *regs)
+ {
+ 	/* Even if we chose not to use SVE, the hardware could still trap: */
+-	if (unlikely(!system_supports_sve()) || WARN_ON(is_compat_task())) {
++	if (unlikely(!system_supports_sve()) || WARN_ON(is_a32_compat_task())) {
+ 		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
+ 		return;
+ 	}
+@@ -1430,7 +1430,7 @@ void do_sve_acc(unsigned long esr, struc
+ void do_sme_acc(unsigned long esr, struct pt_regs *regs)
+ {
+ 	/* Even if we chose not to use SME, the hardware could still trap: */
+-	if (unlikely(!system_supports_sme()) || WARN_ON(is_compat_task())) {
++	if (unlikely(!system_supports_sme()) || WARN_ON(is_a32_compat_task())) {
+ 		force_signal_inject(SIGILL, ILL_ILLOPC, regs->pc, 0);
+ 		return;
+ 	}
+--- a/arch/arm64/kernel/process.c
++++ b/arch/arm64/kernel/process.c
+@@ -431,7 +431,7 @@ int copy_thread(struct task_struct *p, c
+ void tls_preserve_current_state(void)
+ {
+ 	*task_user_tls(current) = read_sysreg(tpidr_el0);
+-	if (system_supports_tpidr2() && !is_compat_task())
++	if (system_supports_tpidr2() && !is_a32_compat_task())
+ 		current->thread.tpidr2_el0 = read_sysreg_s(SYS_TPIDR2_EL0);
+ }
+ 

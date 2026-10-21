@@ -1,0 +1,150 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Yury Norov <ynorov@caviumnetworks.com>
+Date: Mon, 27 Nov 2023 20:40:13 +0800
+Subject: [PATCH] arm64: introduce binfmt_elf32.c
+
+maillist inclusion
+category: feature
+bugzilla: https://gitee.com/openeuler/kernel/issues/I8JVJ3
+CVE: NA
+
+Reference: https://github.com/norov/linux/commits/ilp32-5.2
+
+--------------------------------
+
+As we support more than one compat formats, it looks more reasonable
+to not use fs/compat_binfmt.c. Custom binfmt_elf32.c allows to move aarch32
+specific definitions there and make code more maintainable and readable.
+
+Signed-off-by: Yury Norov <ynorov@caviumnetworks.com>
+Signed-off-by: Yury Norov <ynorov@marvell.com>
+Signed-off-by: Xiongfeng Wang <wangxiongfeng2@huawei.com>
+Acked-by: Xie XiuQi <xiexiuqi@huawei.com>
+Signed-off-by: Chen Jun <chenjun102@huawei.com>
+Signed-off-by: Chen Jiahao <chenjiahao16@huawei.com>
+
+Conflicts:
+	arch/arm64/kernel/Makefile
+
+Signed-off-by: Jinjie Ruan <ruanjinjie@huawei.com>
+
+(cherry picked from openEuler OLK-6.6 commit 7de3ab4c3dd938fae3626a6344830b018eb7ba4f)
+[6.12: elf.h: 6.12 has the AArch32 register types outside
+ CONFIG_COMPAT, they stay there]
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/include/asm/elf.h     | 22 ++++++----------------
+ arch/arm64/include/asm/hwcap.h   |  2 --
+ arch/arm64/kernel/Makefile       |  2 +-
+ arch/arm64/kernel/binfmt_elf32.c | 27 +++++++++++++++++++++++++++
+ arch/arm64/kernel/process.c      |  2 +-
+ 5 files changed, 35 insertions(+), 20 deletions(-)
+ create mode 100644 arch/arm64/kernel/binfmt_elf32.c
+
+--- a/arch/arm64/include/asm/elf.h
++++ b/arch/arm64/include/asm/elf.h
+@@ -211,22 +211,14 @@ typedef compat_elf_greg_t		compat_elf_gr
+ 
+ /* PIE load location for compat arm. Must match ARM ELF_ET_DYN_BASE. */
+ #define COMPAT_ELF_ET_DYN_BASE		0x000400000UL
++#endif /*CONFIG_COMPAT */
+ 
++#ifdef CONFIG_AARCH32_EL0
+ /* AArch32 EABI. */
+ #define EF_ARM_EABI_MASK		0xff000000
+ int compat_elf_check_arch(const struct elf32_hdr *);
+-#define compat_elf_check_arch		compat_elf_check_arch
+ #define compat_start_thread		compat_start_thread
+-/*
+- * Unlike the native SET_PERSONALITY macro, the compat version maintains
+- * READ_IMPLIES_EXEC across an execve() since this is the behaviour on
+- * arch/arm/.
+- */
+-#define COMPAT_SET_PERSONALITY(ex)					\
+-({									\
+-	clear_thread_flag(TIF_32BIT_AARCH64);				\
+-	set_thread_flag(TIF_32BIT);					\
+- })
++
+ #ifdef CONFIG_COMPAT_VDSO
+ #define COMPAT_ARCH_DLINFO						\
+ do {									\
+@@ -242,12 +234,10 @@ do {									\
+ #else
+ #define COMPAT_ARCH_DLINFO
+ #endif
+-extern int aarch32_setup_additional_pages(struct linux_binprm *bprm,
+-					  int uses_interp);
+-#define compat_arch_setup_additional_pages \
+-					aarch32_setup_additional_pages
+ 
+-#endif /* CONFIG_COMPAT */
++extern int aarch32_setup_additional_pages(struct linux_binprm *bprm,
++				      int uses_interp);
++#endif /* CONFIG_AARCH32_EL0 */
+ 
+ struct arch_elf_state {
+ 	int flags;
+--- a/arch/arm64/include/asm/hwcap.h
++++ b/arch/arm64/include/asm/hwcap.h
+@@ -167,8 +167,6 @@
+ #define ELF_HWCAP2		cpu_get_elf_hwcap2()
+ 
+ #ifdef CONFIG_AARCH32_EL0
+-#define COMPAT_ELF_HWCAP	(compat_elf_hwcap)
+-#define COMPAT_ELF_HWCAP2	(compat_elf_hwcap2)
+ extern unsigned int compat_elf_hwcap, compat_elf_hwcap2;
+ #endif
+ 
+--- a/arch/arm64/kernel/Makefile
++++ b/arch/arm64/kernel/Makefile
+@@ -38,7 +38,7 @@ obj-y			:= debug-monitors.o entry.o irq.
+ 			   smp.o smp_spin_table.o topology.o smccc-call.o	\
+ 			   syscall.o proton-pack.o idle.o patching.o pi/
+ 
+-obj-$(CONFIG_AARCH32_EL0)		+= sys32.o signal32.o			\
++obj-$(CONFIG_AARCH32_EL0)		+= binfmt_elf32.o sys32.o signal32.o			\
+ 					   sys_compat.o
+ obj-$(CONFIG_AARCH32_EL0)		+= sigreturn32.o
+ obj-$(CONFIG_COMPAT_ALIGNMENT_FIXUPS)	+= compat_alignment.o
+--- /dev/null
++++ b/arch/arm64/kernel/binfmt_elf32.c
+@@ -0,0 +1,27 @@
++// SPDX-License-Identifier: GPL-2.0
++
++/*
++ * Support for AArch32 Linux ELF binaries.
++ */
++
++/* AArch32 EABI. */
++#define compat_start_thread		compat_start_thread
++/*
++ * Unlike the native SET_PERSONALITY macro, the compat version inherits
++ * READ_IMPLIES_EXEC across a fork() since this is the behaviour on
++ * arch/arm/.
++ */
++#define COMPAT_SET_PERSONALITY(ex)					\
++({									\
++	clear_thread_flag(TIF_32BIT_AARCH64);				\
++	set_thread_flag(TIF_32BIT);					\
++})
++
++#define COMPAT_ARCH_DLINFO
++#define COMPAT_ELF_HWCAP		(compat_elf_hwcap)
++#define COMPAT_ELF_HWCAP2		(compat_elf_hwcap2)
++
++#define compat_arch_setup_additional_pages \
++					aarch32_setup_additional_pages
++
++#include "../../../fs/compat_binfmt_elf.c"
+--- a/arch/arm64/kernel/process.c
++++ b/arch/arm64/kernel/process.c
+@@ -652,7 +652,7 @@ unsigned long arch_align_stack(unsigned
+ 	return sp & ~0xf;
+ }
+ 
+-#ifdef CONFIG_COMPAT
++#ifdef CONFIG_AARCH32_EL0
+ int compat_elf_check_arch(const struct elf32_hdr *hdr)
+ {
+ 	if (!system_supports_32bit_el0())

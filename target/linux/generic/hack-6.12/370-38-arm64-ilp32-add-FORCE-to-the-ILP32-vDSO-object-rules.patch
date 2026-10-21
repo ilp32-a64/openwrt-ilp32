@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Mon, 19 Oct 2026 23:41:34 +0800
+Subject: [PATCH] arm64: ilp32: add FORCE to the ILP32 vDSO object rules
+
+The rules for vgettimeofday-ilp32.o, note-ilp32.o and sigreturn-ilp32.o
+use if_changed_dep but have no FORCE prerequisite, so a changed command
+line (compiler flags, compiler) does not rebuild them, and Kbuild warns:
+
+  arch/arm64/kernel/vdso-ilp32/Makefile:85: FORCE prerequisite is missing
+
+Add FORCE, as the other rules of this Makefile and the LP64 vDSO have.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+(cherry picked from commit 0da7f9bdc9c6562ebe81197be3a9807eadcc229c)
+(cherry picked from commit 22c36de24e86006b77180bbfed337f2080911380)
+---
+ arch/arm64/kernel/vdso-ilp32/Makefile | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+--- a/arch/arm64/kernel/vdso-ilp32/Makefile
++++ b/arch/arm64/kernel/vdso-ilp32/Makefile
+@@ -87,13 +87,13 @@ quiet_cmd_vdsosym = VDSOSYM $@
+ include/generated/vdso-ilp32-offsets.h: $(obj)/vdso-ilp32.so.dbg FORCE
+ 	$(call if_changed,vdsosym)
+ 
+-$(obj)/vgettimeofday-ilp32.o: $(src)/vgettimeofday.c
++$(obj)/vgettimeofday-ilp32.o: $(src)/vgettimeofday.c FORCE
+ 	$(call if_changed_dep,vdso-ilp32cc)
+ 
+-$(obj)/note-ilp32.o: $(src)/../vdso/note.S
++$(obj)/note-ilp32.o: $(src)/../vdso/note.S FORCE
+ 	$(call if_changed_dep,vdso-ilp32as)
+ 
+-$(obj)/sigreturn-ilp32.o: $(src)/../vdso/sigreturn.S
++$(obj)/sigreturn-ilp32.o: $(src)/../vdso/sigreturn.S FORCE
+ 	$(call if_changed_dep,vdso-ilp32as)
+ 
+ # Actual build commands

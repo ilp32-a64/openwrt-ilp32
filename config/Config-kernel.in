@@ -55,6 +55,20 @@ config KERNEL_ARM_PMUV3
 	default y if TARGET_armsr_armv8
 	depends on (arm_v7 || aarch64)
 
+config KERNEL_ARM64_ILP32
+	bool "Enable AArch64 ILP32 user space support"
+	depends on aarch64
+	help
+	  Run AArch64 ILP32 (-mabi=ilp32) programs: 32-bit long and pointers
+	  with the AArch64 instruction set. Selected by the ilp32 AArch64
+	  user-land ABI toolchain option.
+
+# ILP32 user space still makes time32 calls (the futex call of musl,
+# 32-bit time_t C libraries): keep them with ARM64_ILP32
+config KERNEL_COMPAT_32BIT_TIME
+	def_bool y
+	depends on KERNEL_ARM64_ILP32
+
 config KERNEL_RISCV_PMU
 	bool
 	select KERNEL_RISCV_PMU_SBI

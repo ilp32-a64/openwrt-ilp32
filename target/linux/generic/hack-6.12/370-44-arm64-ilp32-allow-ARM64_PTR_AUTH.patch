@@ -1,0 +1,105 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Thu, 22 Oct 2026 20:11:38 +0800
+Subject: [PATCH] arm64: ilp32: allow ARM64_PTR_AUTH
+
+ARM64_ILP32 depended on !ARM64_PTR_AUTH. The dependency came with the
+OLK-5.10 port of the series, without a reason given (norov/ilp32-5.2 did
+not have it), and a configuration with pointer authentication silently
+lost ILP32. What breaks is the build: with ARM64_PTR_AUTH_KERNEL the
+kernel is built with -mbranch-protection=pac-ret, and GCC does not support
+return address signing with -mabi=ilp32, so the ILP32 vDSO fails with
+"return address signing is only supported for -mabi=lp64".
+
+- vdso-ilp32: drop the return address signing flags of the kernel. With
+  ARM64_BTI_KERNEL the vDSO pages are mapped as guarded pages, so keep the
+  BTI landing pads there (-mbranch-protection=bti); otherwise
+  -mbranch-protection=none.
+- pointer_auth.c: PR_PAC_RESET_KEYS, PR_PAC_SET_ENABLED_KEYS and
+  PR_PAC_GET_ENABLED_KEYS (and the NT_ARM_PAC_ENABLED_KEYS regset) refuse
+  only AArch32 tasks: is_a32_compat_thread(). ILP32 tasks run AArch64 code
+  with the PAC instructions. exec now also enables the keys of an ILP32
+  task explicitly: ptrauth_thread_init_user() goes through
+  ptrauth_set_enabled_keys(), which returned -EINVAL for ILP32 and left
+  the keys of the previous program.
+- Kconfig: drop the dependency.
+
+The kernel keeps the user registers 64-bit (signal frames, ptrace
+regsets), so signed return addresses of ILP32 code survive signals and
+ptrace. GCC-built ILP32 programs have no PAC instructions; clang emits
+pac-ret for ILP32.
+
+Tested on QEMU -cpu max (FEAT_PAuth, FEAT_FPAC) with ARM64_PTR_AUTH,
+ARM64_PTR_AUTH_KERNEL and ARM64_BTI: ILP32 (clang -mbranch-protection=
+pac-ret, and GCC) and LP64 programs sign and authenticate, a wrong
+modifier traps, the keys are kept over fork and new after exec, the
+prctls and the NT_ARM_PAC_MASK and NT_ARM_PAC_ENABLED_KEYS regsets work,
+and signed return addresses work through calls, signal handlers and
+longjmp. ARM64_BTI_KERNEL needs clang and was not tested.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+ arch/arm64/Kconfig                    |  1 -
+ arch/arm64/kernel/pointer_auth.c      |  6 +++---
+ arch/arm64/kernel/vdso-ilp32/Makefile | 11 +++++++++++
+ 3 files changed, 14 insertions(+), 4 deletions(-)
+
+--- a/arch/arm64/Kconfig
++++ b/arch/arm64/Kconfig
+@@ -1779,7 +1779,6 @@ config ARM64_TAGGED_ADDR_ABI
+ 
+ config ARM64_ILP32
+ 	bool "Kernel support for ILP32"
+-	depends on !ARM64_PTR_AUTH
+ 	help
+ 	  This option enables support for AArch64 ILP32 user space.  ILP32
+ 	  is an ABI where long and pointers are 32bits but it uses the AARCH64
+--- a/arch/arm64/kernel/pointer_auth.c
++++ b/arch/arm64/kernel/pointer_auth.c
+@@ -18,7 +18,7 @@ int ptrauth_prctl_reset_keys(struct task
+ 	if (!system_supports_address_auth() && !system_supports_generic_auth())
+ 		return -EINVAL;
+ 
+-	if (is_compat_thread(task_thread_info(tsk)))
++	if (is_a32_compat_thread(task_thread_info(tsk)))
+ 		return -EINVAL;
+ 
+ 	if (!arg) {
+@@ -72,7 +72,7 @@ int ptrauth_set_enabled_keys(struct task
+ 	if (!system_supports_address_auth())
+ 		return -EINVAL;
+ 
+-	if (is_compat_thread(task_thread_info(tsk)))
++	if (is_a32_compat_thread(task_thread_info(tsk)))
+ 		return -EINVAL;
+ 
+ 	if ((keys & ~PR_PAC_ENABLED_KEYS_MASK) || (enabled & ~keys))
+@@ -97,7 +97,7 @@ int ptrauth_get_enabled_keys(struct task
+ 	if (!system_supports_address_auth())
+ 		return -EINVAL;
+ 
+-	if (is_compat_thread(task_thread_info(tsk)))
++	if (is_a32_compat_thread(task_thread_info(tsk)))
+ 		return -EINVAL;
+ 
+ 	if (tsk->thread.sctlr_user & SCTLR_ELx_ENIA)
+--- a/arch/arm64/kernel/vdso-ilp32/Makefile
++++ b/arch/arm64/kernel/vdso-ilp32/Makefile
+@@ -50,6 +50,17 @@ ifneq ($(c-gettimeofday-y),)
+   CFLAGS_vgettimeofday-ilp32.o += -include $(c-gettimeofday-y)
+ endif
+ 
++# The return address signing flags of the kernel (ARM64_PTR_AUTH_KERNEL) are for LP64 code: GCC does not
++# support return address signing with -mabi=ilp32. Keep the BTI landing pads when the vDSO pages are
++# mapped as guarded pages (ARM64_BTI_KERNEL).
++CFLAGS_REMOVE_vgettimeofday-ilp32.o += -mbranch-protection=pac-ret+bti -mbranch-protection=pac-ret \
++				       -msign-return-address=non-leaf
++ifeq ($(CONFIG_ARM64_BTI_KERNEL),y)
++  CFLAGS_vgettimeofday-ilp32.o += -mbranch-protection=bti
++else
++  CFLAGS_vgettimeofday-ilp32.o += $(call cc-option,-mbranch-protection=none)
++endif
++
+ # Clang versions less than 8 do not support -mcmodel=tiny
+ ifeq ($(CONFIG_CC_IS_CLANG), y)
+   ifeq ($(shell test $(CONFIG_CLANG_VERSION) -lt 80000; echo $$?),0)

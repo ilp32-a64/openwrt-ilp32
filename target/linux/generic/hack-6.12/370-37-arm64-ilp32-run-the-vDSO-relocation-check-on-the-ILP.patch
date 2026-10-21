@@ -1,0 +1,48 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Mon, 19 Oct 2026 23:22:52 +0800
+Subject: [PATCH] arm64: ilp32: run the vDSO relocation check on the ILP32 vDSO
+
+The link command of the ILP32 vDSO is called vdso-ilp32ld_and_vdso_check
+but never runs cmd_vdso_check, so a dynamic relocation in the ILP32 vDSO
+would go unnoticed: nothing applies relocations to the vDSO, and the
+LP64 vDSO link fails in that case.
+
+Run $(cmd_vdso_check) after the link, as the LP64 vDSO does. The generic
+check rejects every R_* relocation type, which covers the ILP32
+R_AARCH64_P32_* types. ARCH_REL_TYPE_ABS is no longer used by
+lib/vdso/Makefile; drop it.
+
+Tested by adding a pointer initialised with an address to .rodata: the
+link fails with "dynamic relocations are not supported".
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+(cherry picked from commit 107bc2b317e16d0f09cc34d88aefdcb6bcdffaf1)
+(cherry picked from commit 5ecc424285de5c2aeaf7b2f779381ca5f68f8f50)
+---
+ arch/arm64/kernel/vdso-ilp32/Makefile | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+--- a/arch/arm64/kernel/vdso-ilp32/Makefile
++++ b/arch/arm64/kernel/vdso-ilp32/Makefile
+@@ -6,9 +6,7 @@
+ # Heavily based on the vDSO Makefiles for other archs.
+ #
+ 
+-# Absolute relocation type $(ARCH_REL_TYPE_ABS) needs to be defined before
+-# the inclusion of generic Makefile.
+-ARCH_REL_TYPE_ABS := R_AARCH64_JUMP_SLOT|R_AARCH64_GLOB_DAT|R_AARCH64_ABS64
++# Include the generic Makefile to check the built vdso.
+ include $(srctree)/lib/vdso/Makefile
+ 
+ obj-ilp32-vdso := vgettimeofday-ilp32.o note-ilp32.o sigreturn-ilp32.o
+@@ -105,7 +103,8 @@ $(obj)/sigreturn-ilp32.o: $(src)/../vdso
+ ldflags-ilp32 := $(addprefix -Wl$(comma),$(filter-out -T,$(ldflags-y)))
+ quiet_cmd_vdso-ilp32ld_and_vdso_check = LD      $@
+       cmd_vdso-ilp32ld_and_vdso_check = $(CC) $(c_flags) -mabi=ilp32 -shared $(ldflags-ilp32) \
+-					  -Wl,-T $(real-prereqs) -o $@
++					  -Wl,-T $(real-prereqs) -o $@; \
++					  $(cmd_vdso_check)
+ quiet_cmd_vdso-ilp32cc = VDSOILP32C $@
+       cmd_vdso-ilp32cc= $(CC) $(c_flags) -mabi=ilp32 -c -o $@ $<
+ quiet_cmd_vdso-ilp32as = VDSOILP32A $@
