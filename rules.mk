@@ -132,6 +132,8 @@ ifdef CONFIG_AARCH64_ABI_ILP32
   # ILP32 binaries must not mix with the LP64 ones: own directories and package architecture
   ARCH_SUFFIX:=$(ARCH_SUFFIX)_ilp32
   ARCH_PACKAGES:=$(ARCH_PACKAGES)_ilp32
+  # for code that is not user land (firmware), which the toolchain would build as ILP32
+  TARGET_LP64_FLAGS:=-mabi=lp64
 endif
 
 DEFAULT_SUBDIR_TARGETS:=clean download prepare compile update refresh prereq dist distcheck configure check check-depends

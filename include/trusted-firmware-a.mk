@@ -88,6 +88,7 @@ define Build/Compile/Trusted-Firmware-A
 	+unset CC; \
 	$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
 		CROSS_COMPILE=$(TARGET_CROSS) \
+		$(if $(TARGET_LP64_FLAGS),CC="$(TARGET_CROSS)gcc $(TARGET_LP64_FLAGS)") \
 		OPENSSL_DIR=$(STAGING_DIR_HOST) \
 		$(if $(DTC),DTC="$(DTC)") \
 		PLAT=$(PLAT) \

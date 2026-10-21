@@ -106,6 +106,13 @@ HOST_MAKE_FLAGS += \
 
 ifneq ($(BUILD_VARIANT),none)
   TARGET_CFLAGS := $(filter-out -O2 -O3 -fno-plt,$(TARGET_CFLAGS))
+  # GRUB itself is firmware: LP64 also with the ILP32 user-land ABI (EFI needs -mcmodel=large).
+  # The TARGET_CC of GRUB builds the GRUB kernel and modules (grub-core, where CC is TARGET_CC);
+  # configure still checks CC, the ILP32 user-land compiler.
+  ifneq ($(TARGET_LP64_FLAGS),)
+    CONFIGURE_VARS += TARGET_CC="$(TARGET_CC) $(TARGET_LP64_FLAGS)"
+    MAKE_FLAGS += CC="$(TARGET_CC) $(TARGET_LP64_FLAGS)"
+  endif
   MAKE_PATH := grub-core
 endif
 
