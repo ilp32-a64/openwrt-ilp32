@@ -128,6 +128,11 @@ ifdef CONFIG_MIPS64_ABI
      ARCH_SUFFIX:=$(ARCH_SUFFIX)_$(call qstrip,$(CONFIG_MIPS64_ABI))
   endif
 endif
+ifdef CONFIG_AARCH64_ABI_ILP32
+  # ILP32 binaries must not mix with the LP64 ones: own directories and package architecture
+  ARCH_SUFFIX:=$(ARCH_SUFFIX)_ilp32
+  ARCH_PACKAGES:=$(ARCH_PACKAGES)_ilp32
+endif
 
 DEFAULT_SUBDIR_TARGETS:=clean download prepare compile update refresh prereq dist distcheck configure check check-depends
 
