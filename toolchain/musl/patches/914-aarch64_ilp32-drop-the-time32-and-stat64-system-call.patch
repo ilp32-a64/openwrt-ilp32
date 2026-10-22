@@ -1,0 +1,200 @@
+From 2bf6fd173293612066b2079c2b34cd59302e362b Mon Sep 17 00:00:00 2001
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Date: Thu, 22 Oct 2026 20:50:16 +0800
+Subject: [PATCH] aarch64_ilp32: drop the time32 and stat64 system call numbers
+
+The ILP32 kernel ABI keeps the time32 system calls of the AArch32 ABI
+and the stat64 calls with the ARM struct stat64. Their types do not
+match the 64-bit time_t of this port, so, as for riscv32,
+bits/syscall.h no longer names them and musl uses only the time64
+calls and statx: kstat.h is empty and __NR_futex is __NR_futex_time64.
+The ILP32 kernel uapi hides the same numbers.
+
+settimeofday_time32 stays, under its arm name, for callers that set
+only the timezone: busybox hwclock uses SYS_settimeofday_time32 when
+SYS_settimeofday is missing.
+---
+ arch/aarch64_ilp32/bits/syscall.h.in | 30 ++--------------------------
+ arch/aarch64_ilp32/kstat.h           | 22 --------------------
+ arch/aarch64_ilp32/syscall_arch.h    |  8 ++++++++
+ 3 files changed, 10 insertions(+), 50 deletions(-)
+
+diff --git a/arch/aarch64_ilp32/bits/syscall.h.in b/arch/aarch64_ilp32/bits/syscall.h.in
+index 35bd23ab..5cfb421d 100644
+--- a/arch/aarch64_ilp32/bits/syscall.h.in
++++ b/arch/aarch64_ilp32/bits/syscall.h.in
+@@ -2,7 +2,6 @@
+ #define __NR_io_destroy 1
+ #define __NR_io_submit 2
+ #define __NR_io_cancel 3
+-#define __NR_io_getevents 4
+ #define __NR_setxattr 5
+ #define __NR_lsetxattr 6
+ #define __NR_fsetxattr 7
+@@ -69,23 +68,16 @@
+ #define __NR_preadv 69
+ #define __NR_pwritev 70
+ #define __NR_sendfile64 71
+-#define __NR_pselect6 72
+-#define __NR_ppoll 73
+ #define __NR_signalfd4 74
+ #define __NR_vmsplice 75
+ #define __NR_splice 76
+ #define __NR_tee 77
+ #define __NR_readlinkat 78
+-#define __NR_fstatat64 79
+-#define __NR_fstat64 80
+ #define __NR_sync 81
+ #define __NR_fsync 82
+ #define __NR_fdatasync 83
+ #define __NR_sync_file_range2 84
+ #define __NR_timerfd_create 85
+-#define __NR_timerfd_settime 86
+-#define __NR_timerfd_gettime 87
+-#define __NR_utimensat 88
+ #define __NR_acct 89
+ #define __NR_capget 90
+ #define __NR_capset 91
+@@ -95,24 +87,16 @@
+ #define __NR_waitid 95
+ #define __NR_set_tid_address 96
+ #define __NR_unshare 97
+-#define __NR_futex 98
+ #define __NR_set_robust_list 99
+ #define __NR_get_robust_list 100
+-#define __NR_nanosleep 101
+ #define __NR_getitimer 102
+ #define __NR_setitimer 103
+ #define __NR_kexec_load 104
+ #define __NR_init_module 105
+ #define __NR_delete_module 106
+ #define __NR_timer_create 107
+-#define __NR_timer_gettime 108
+ #define __NR_timer_getoverrun 109
+-#define __NR_timer_settime 110
+ #define __NR_timer_delete 111
+-#define __NR_clock_settime 112
+-#define __NR_clock_gettime 113
+-#define __NR_clock_getres 114
+-#define __NR_clock_nanosleep 115
+ #define __NR_syslog 116
+ #define __NR_ptrace 117
+ #define __NR_sched_setparam 118
+@@ -124,7 +108,6 @@
+ #define __NR_sched_yield 124
+ #define __NR_sched_get_priority_max 125
+ #define __NR_sched_get_priority_min 126
+-#define __NR_sched_rr_get_interval 127
+ #define __NR_restart_syscall 128
+ #define __NR_kill 129
+ #define __NR_tkill 130
+@@ -134,7 +117,6 @@
+ #define __NR_rt_sigaction 134
+ #define __NR_rt_sigprocmask 135
+ #define __NR_rt_sigpending 136
+-#define __NR_rt_sigtimedwait 137
+ #define __NR_rt_sigqueueinfo 138
+ #define __NR_rt_sigreturn 139
+ #define __NR_setpriority 140
+@@ -164,9 +146,7 @@
+ #define __NR_umask 166
+ #define __NR_prctl 167
+ #define __NR_getcpu 168
+-#define __NR_gettimeofday 169
+-#define __NR_settimeofday 170
+-#define __NR_adjtimex 171
++#define __NR_settimeofday_time32 170
+ #define __NR_getpid 172
+ #define __NR_getppid 173
+ #define __NR_getuid 174
+@@ -177,8 +157,6 @@
+ #define __NR_sysinfo 179
+ #define __NR_mq_open 180
+ #define __NR_mq_unlink 181
+-#define __NR_mq_timedsend 182
+-#define __NR_mq_timedreceive 183
+ #define __NR_mq_notify 184
+ #define __NR_mq_getsetattr 185
+ #define __NR_msgget 186
+@@ -187,7 +165,6 @@
+ #define __NR_msgsnd 189
+ #define __NR_semget 190
+ #define __NR_semctl 191
+-#define __NR_semtimedop 192
+ #define __NR_semop 193
+ #define __NR_shmget 194
+ #define __NR_shmctl 195
+@@ -238,14 +215,11 @@
+ #define __NR_rt_tgsigqueueinfo 240
+ #define __NR_perf_event_open 241
+ #define __NR_accept4 242
+-#define __NR_recvmmsg 243
+-#define __NR_wait4 260
+ #define __NR_prlimit64 261
+ #define __NR_fanotify_init 262
+ #define __NR_fanotify_mark 263
+ #define __NR_name_to_handle_at 264
+ #define __NR_open_by_handle_at 265
+-#define __NR_clock_adjtime 266
+ #define __NR_syncfs 267
+ #define __NR_setns 268
+ #define __NR_sendmmsg 269
+@@ -271,7 +245,6 @@
+ #define __NR_pkey_alloc 289
+ #define __NR_pkey_free 290
+ #define __NR_statx 291
+-#define __NR_io_pgetevents 292
+ #define __NR_rseq 293
+ #define __NR_kexec_file_load 294
+ #define __NR_clock_gettime64 403
+@@ -333,3 +306,4 @@
+ #define __NR_lsm_set_self_attr 460
+ #define __NR_lsm_list_modules 461
+ #define __NR_mseal 462
++#define __NR_futex __NR_futex_time64
+diff --git a/arch/aarch64_ilp32/kstat.h b/arch/aarch64_ilp32/kstat.h
+index bb2c5d27..e69de29b 100644
+--- a/arch/aarch64_ilp32/kstat.h
++++ b/arch/aarch64_ilp32/kstat.h
+@@ -1,22 +0,0 @@
+-/* struct stat64 of the kernel for ILP32: the AArch32 layout (arm64 asm/stat.h) */
+-struct kstat {
+-	dev_t st_dev;
+-	int __st_dev_padding;
+-	long __st_ino_truncated;
+-	mode_t st_mode;
+-	nlink_t st_nlink;
+-	uid_t st_uid;
+-	gid_t st_gid;
+-	dev_t st_rdev;
+-	int __st_rdev_padding;
+-	off_t st_size;
+-	blksize_t st_blksize;
+-	blkcnt_t st_blocks;
+-	long st_atime_sec;
+-	long st_atime_nsec;
+-	long st_mtime_sec;
+-	long st_mtime_nsec;
+-	long st_ctime_sec;
+-	long st_ctime_nsec;
+-	ino_t st_ino;
+-};
+diff --git a/arch/aarch64_ilp32/syscall_arch.h b/arch/aarch64_ilp32/syscall_arch.h
+index ed5ab635..376a3a72 100644
+--- a/arch/aarch64_ilp32/syscall_arch.h
++++ b/arch/aarch64_ilp32/syscall_arch.h
+@@ -89,3 +89,11 @@ static inline long __syscall6(long n, long a, long b, long c, long d, long e, lo
+ #define VDSO_CGT32_VER "LINUX_4.12"
+ #define VDSO_CGT_SYM "__kernel_clock_gettime64"
+ #define VDSO_CGT_VER "LINUX_4.12"
++
++/* The time32 and stat64 system calls are not in bits/syscall.h (their
++ * types do not match the 64-bit time_t), as for riscv32; only
++ * settimeofday_time32 is, under its arm name, for callers that set just the
++ * timezone (busybox hwclock). clock_nanosleep.c still names SYS_nanosleep in
++ * its fallback for kernels without the time64 calls, which ILP32 kernels
++ * always have; it is never reached. */
++#define SYS_nanosleep 101
+-- 
+2.43.0
+
