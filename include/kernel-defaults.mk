@@ -9,6 +9,19 @@ endif
 
 INITRAMFS_EXTRA_FILES ?= $(GENERIC_PLATFORM_DIR)/image/initramfs-base-files.txt
 
+# Kconfig turns an option off without a word when its dependencies are not met: warn about every
+# CONFIG_KERNEL_* option that is enabled but not set in the kernel, and fail for the ones that must
+# not be lost (scripts/check-kernel-config.sh)
+KERNEL_CONFIG_REQUIRED := ARM64_ILP32 COMPAT_32BIT_TIME
+
+define Kernel/CheckConfig
+	cp $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config.check
+	$(KERNEL_MAKE) KCONFIG_CONFIG=$(LINUX_DIR)/.config.check olddefconfig > /dev/null
+	$(SCRIPT_DIR)/check-kernel-config.sh $(TOPDIR)/.config $(LINUX_DIR)/.config.check \
+		$(KERNEL_CONFIG_REQUIRED)
+	rm -f $(LINUX_DIR)/.config.check $(LINUX_DIR)/.config.check.old
+endef
+
 export HOST_EXTRACFLAGS=-I$(STAGING_DIR_HOST)/include
 
 # defined in quilt.mk
@@ -120,6 +133,7 @@ define Kernel/Configure/Default
 	$(SCRIPT_DIR)/package-metadata.pl kconfig $(TMP_DIR)/.packageinfo $(TOPDIR)/.config $(KERNEL_PATCHVER) > $(LINUX_DIR)/.config.override
 	$(SCRIPT_DIR)/kconfig.pl 'm+' '+' $(LINUX_DIR)/.config.target /dev/null $(LINUX_DIR)/.config.override > $(LINUX_DIR)/.config.set
 	$(call Kernel/SetNoInitramfs)
+	$(call Kernel/CheckConfig)
 	rm -rf $(KERNEL_BUILD_DIR)/modules
 	cmp -s $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config.prev || { \
 		cp $(LINUX_DIR)/.config.set $(LINUX_DIR)/.config; \
