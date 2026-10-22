@@ -35,7 +35,9 @@ else
     KERNEL_CC?=$(HOSTCC)
     KERNEL_CROSS?=
   else
-    KERNEL_CC?=$(TARGET_CC)
+    # LP64 with the ILP32 user-land ABI: the kconfig compiler checks (cc-option) do not get the
+    # -mabi=lp64 of the arm64 Makefile
+    KERNEL_CC?=$(TARGET_CC)$(if $(TARGET_LP64_FLAGS), $(TARGET_LP64_FLAGS))
     KERNEL_CROSS?=$(TARGET_CROSS)
   endif
 
