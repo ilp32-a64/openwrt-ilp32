@@ -18,7 +18,7 @@ on:
         description: "test-ilp32 commit with build-release.sh and the QEMU tests (full SHA)"
         required: true
         type: string
-        default: "bf3b5e082ae5e7afbbddc04bf41a794095a1af0d"
+        default: "518cca666dd57266356cfc6eb59c816bb8521617"
 
 permissions:
   contents: read
@@ -184,6 +184,8 @@ jobs:
 
   release:
     needs: [build, test]
+    # a dry run (version ...-test) never tags or creates a Release, even if approved by mistake
+    if: ${{ !contains(inputs.version, '-test') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     environment: release
