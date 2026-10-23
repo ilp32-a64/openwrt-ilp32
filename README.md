@@ -4,6 +4,24 @@
 64-bit kernel): musl 1.2.5 with the `aarch64_ilp32` port and an ILP32 Linux kernel. Less memory for every
 process, while keeping the AArch64 instruction set, on cores that no longer run 32-bit Arm code.
 
+## How much memory?
+
+Measured in QEMU (armsr, 256 MB, the same packages for both): with a 150,000-domain adblock list in
+dnsmasq, LuCI and a Python process, **the ILP32 user space uses 26% less memory and leaves 9.6 MB more
+free**.
+
+| | LP64 | ILP32 | |
+|---|---:|---:|---:|
+| Free memory (MemAvailable) | 124.3 MB | 133.9 MB | +9.6 MB |
+| User space (PSS, all processes) | 34.6 MB | 25.6 MB | -26% |
+| dnsmasq, 150,000-domain blocklist | 12.0 MB | 8.9 MB | -26% |
+| python3, 100,000-entry dict | 17.9 MB | 12.4 MB | -31% |
+| Idle, LuCI only | 5.5 MB | 5.1 MB | -7% |
+
+The kernel does not get smaller; the savings are in the programs, and grow with their data. An idle
+router saves a few hundred KB. Method and scripts: [test-ilp32](https://github.com/ilp32-a64/test-ilp32)
+(`openwrt/`).
+
 This default branch only holds this file. OpenWrt is in the branch below.
 
 ## Branches
