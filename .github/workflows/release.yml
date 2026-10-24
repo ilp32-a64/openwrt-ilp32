@@ -19,7 +19,7 @@ on:
         description: "test-ilp32 commit with build-release.sh and the QEMU tests (full SHA)"
         required: true
         type: string
-        default: "TEST_ILP32_SHA"
+        default: "a0dca8aef49a1eacd5814c6557852f0b5dd85686"
 
 permissions:
   contents: read
