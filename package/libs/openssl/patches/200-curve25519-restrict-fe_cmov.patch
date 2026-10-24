@@ -1,0 +1,31 @@
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Subject: [PATCH] curve25519: restrict-qualify fe_cmov() so that it vectorizes
+
+fe_cmov() is the constant-time conditional copy used by table_select() for
+the fixed-base scalar multiplication of Ed25519 signing (64 table lookups,
+8 conditional copies each). Its two arrays never overlap: f is a member of
+the caller's ge_precomp and g a member of an entry of k25519Precomp or of
+the local minust. Saying so lets compilers vectorize the loop: clang fully
+unrolls the 10-iteration loop before vectorizing and then cannot prove the
+arrays disjoint, so it left it scalar; GCC vectorized it behind a runtime
+overlap check. With restrict both emit a short NEON version.
+
+On a Cortex-A35 (AArch64 ILP32, OpenSSL 3.5.9, assembly enabled), Ed25519
+signing with clang 22 goes from 2134.5 to 2736 signatures/s (+28%), with
+GCC 14.3 from 2553 to 2633 (+3%); TLS 1.3 handshakes with an Ed25519
+certificate +2.5% (clang). Ed25519 verification and X25519 do not use
+fe_cmov() and are unchanged. The function's behaviour is unchanged.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+--- a/crypto/ec/curve25519.c
++++ b/crypto/ec/curve25519.c
+@@ -1632,7 +1632,7 @@
+  *
+  * Preconditions: b in {0,1}.
+  */
+-static void fe_cmov(fe f, const fe g, unsigned b)
++static void fe_cmov(int32_t *restrict f, const int32_t *restrict g, unsigned b)
+ {
+     size_t i;
+ 
