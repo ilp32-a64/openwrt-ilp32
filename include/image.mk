@@ -394,7 +394,8 @@ opkg_target = \
 
 apk_target = \
 	$(call apk,$(mkfs_cur_target_dir)) --no-scripts \
-		--repositories-file /dev/null --repository file://$(PACKAGE_DIR_ALL)/packages.adb
+		--repositories-file /dev/null --repository file://$(PACKAGE_DIR_ALL)/packages.adb \
+		$(if $(CONFIG_SIGNED_PACKAGES),,--allow-untrusted)
 
 
 target-dir-%: FORCE
