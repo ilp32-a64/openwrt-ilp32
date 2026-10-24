@@ -1,6 +1,6 @@
 name: Release
 
-# Build, test and draft an OpenWrt-ILP32 release (armsr/armv8 and the OpenWrt One of mediatek/filogic).
+# Build, test and draft an OpenWrt-ILP32 release (armsr/armv8, devices of mediatek/filogic, Raspberry Pi 3-5).
 # Manual only. Each target is built in its own job; the QEMU checks run on armsr/armv8. Two human gates: the release
 # job waits for approval in the "release" environment, and the Release it creates is a draft that is
 # published by hand.
@@ -19,7 +19,7 @@ on:
         description: "test-ilp32 commit with build-release.sh and the QEMU tests (full SHA)"
         required: true
         type: string
-        default: "ec47fde16f6fb3d5ce011fa7ae3b044616241f67"
+        default: "TEST_ILP32_SHA"
 
 permissions:
   contents: read
@@ -33,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [armsr-armv8, mediatek-filogic]
+        target: [armsr-armv8, mediatek-filogic, bcm27xx-bcm2710, bcm27xx-bcm2711, bcm27xx-bcm2712]
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     permissions:
