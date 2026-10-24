@@ -22,7 +22,7 @@ Signed-off-by: Phil Elwell <phil@raspberrypi.org>
 @@ -195,6 +197,10 @@ static int c_show(struct seq_file *m, vo
  {
  	int i, j;
- 	bool compat = personality(current->personality) == PER_LINUX32;
+ 	bool aarch32 = personality(current->personality) == PER_LINUX32;
 +	struct device_node *np;
 +	const char *model;
 +	const char *serial;
