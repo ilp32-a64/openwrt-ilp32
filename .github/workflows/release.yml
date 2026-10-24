@@ -140,7 +140,7 @@ jobs:
       - name: Install QEMU
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends qemu-system-arm python3-pexpect > /dev/null
+          sudo apt-get install -y -qq --no-install-recommends qemu-system-arm ipxe-qemu python3-pexpect > /dev/null
           qemu-system-aarch64 --version | head -1
 
       - name: Check out test-ilp32
