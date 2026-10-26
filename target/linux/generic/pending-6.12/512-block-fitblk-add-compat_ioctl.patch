@@ -1,0 +1,24 @@
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Subject: [PATCH] block: fitblk: add compat_ioctl
+
+fitblk only sets .ioctl. A compat task (AArch32, or AArch64 ILP32) calls
+ioctl() through compat_sys_ioctl() -> compat_blkdev_ioctl(), which returns
+-ENOIOCTLCMD (ENOTTY to user space) when the driver has no compat_ioctl.
+So "fitblk /dev/fit0" (FITBLK_RELEASE) fails in sysupgrade stage2 of a
+compat user space, ubiblock cannot remove the busy volume and the upgrade
+aborts before writing anything.
+
+FITBLK_RELEASE takes no argument, so blkdev_compat_ptr_ioctl() is enough.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+--- a/drivers/block/fitblk.c
++++ b/drivers/block/fitblk.c
+@@ -183,6 +183,7 @@ static int fitblk_ioctl(struct block_dev
+ static const struct block_device_operations fitblk_fops = {
+ 	.owner		= THIS_MODULE,
+ 	.ioctl		= fitblk_ioctl,
++	.compat_ioctl	= blkdev_compat_ptr_ioctl,
+ 	.open		= fitblk_open,
+ 	.release	= fitblk_release,
+ 	.submit_bio	= fitblk_submit_bio,
