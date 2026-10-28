@@ -1,0 +1,128 @@
+#!/bin/sh
+# apk-lp64: install and run official OpenWrt LP64 packages on an OpenWrt-ILP32 system.
+#
+# The kernel runs LP64 programs next to the ILP32 system. The packages go into a root of their own
+# (default /opt/lp64) with its own apk database, repositories and keys, and run through the LP64 musl loader
+# /lib/ld-musl-aarch64.so.1. The ILP32 system is not touched: its apk database, /etc/apk and its programs.
+# Services are not started: init scripts and package scripts of LP64 packages are not run.
+#
+# Usage: apk-lp64 <command> [args]
+#   add|del|upgrade|fix PKG...  install/remove/upgrade LP64 packages (apk, in the LP64 root)
+#   update|search|info|list|policy|dot ...   other apk commands, in the LP64 root
+#   run PROGRAM [ARGS]          run an LP64 program through the LP64 loader (no symlink needed)
+#   setup                       create the LP64 root and the loader link, nothing installed
+#   status                      show the configuration
+#   purge                       remove the LP64 root, the loader link and its library path file
+# Environment: APK_LP64_ROOT (/opt/lp64), APK_LP64_MIRROR (https://downloads.openwrt.org),
+#              APK_LP64_VERSION, APK_LP64_TARGET, APK_LP64_ARCH (default: from /etc/openwrt_release),
+#              APK_LP64_KEYS (/usr/share/apk-lp64/keys), APK_LP64_NOLINK=1 (no loader link and path file:
+#              for tests; use 'run' then)
+
+set -u
+ROOT=${APK_LP64_ROOT:-/opt/lp64}
+MIRROR=${APK_LP64_MIRROR:-https://downloads.openwrt.org}
+KEYS=${APK_LP64_KEYS:-/usr/share/apk-lp64/keys}
+LOADER=/lib/ld-musl-aarch64.so.1
+PATHFILE=/etc/ld-musl-aarch64.path
+
+die() { echo "apk-lp64: $*" >&2; exit 1; }
+
+. /etc/openwrt_release
+# OpenWrt-ILP32 25.12.6-ilp32.2 is based on OpenWrt 25.12.6; its packages are aarch64_<cpu>_ilp32
+VERSION=${APK_LP64_VERSION:-${DISTRIB_RELEASE%%-ilp32*}}
+TARGET=${APK_LP64_TARGET:-$DISTRIB_TARGET}
+ARCH=${APK_LP64_ARCH:-${DISTRIB_ARCH%_ilp32}}
+
+check() {
+	[ -e /lib/ld-musl-aarch64_ilp32.so.1 ] || die "this is not an OpenWrt-ILP32 system"
+	case "$ARCH" in aarch64_*) ;; *) die "unexpected package architecture '$ARCH'" ;; esac
+	case "$VERSION" in [0-9]*.[0-9]*.[0-9]*) ;;
+	*) die "cannot tell the OpenWrt release from '$DISTRIB_RELEASE'; set APK_LP64_VERSION" ;; esac
+}
+
+repos() {
+	echo "$MIRROR/releases/$VERSION/targets/$TARGET/packages/packages.adb"
+	for feed in base packages luci routing telephony video; do
+		echo "$MIRROR/releases/$VERSION/packages/$ARCH/$feed/packages.adb"
+	done
+}
+
+setup_root() {
+	mkdir -p "$ROOT/etc/apk/keys" "$ROOT/etc/apk/repositories.d" || exit 1
+	echo "$ARCH" > "$ROOT/etc/apk/arch"
+	repos > "$ROOT/etc/apk/repositories.d/distfeeds.list"
+	cp "$KEYS"/*.pem "$ROOT/etc/apk/keys/" || die "no keys in $KEYS"
+	[ -d "$ROOT/lib/apk/db" ] || apk --root "$ROOT" --initdb --no-scripts add > /dev/null ||
+		die "cannot create the apk database in $ROOT"
+}
+
+link_loader() {
+	[ -n "${APK_LP64_NOLINK:-}" ] && return 0
+	# the LP64 loader of the root; an existing different loader or path file is left alone
+	if [ -L "$LOADER" ] || [ ! -e "$LOADER" ]; then
+		[ "$(readlink "$LOADER")" = "$ROOT/lib/libc.so" ] || ln -sf "$ROOT/lib/libc.so" "$LOADER"
+	else
+		echo "apk-lp64: $LOADER exists and is not ours; leaving it" >&2
+	fi
+	want="$ROOT/lib:$ROOT/usr/lib"
+	if [ ! -e "$PATHFILE" ]; then
+		echo "$want" > "$PATHFILE"
+	elif [ "$(cat "$PATHFILE")" != "$want" ]; then
+		echo "apk-lp64: $PATHFILE exists with other contents; leaving it" >&2
+	fi
+}
+
+lp64_apk() {
+	# package scripts are never run (they would act on the ILP32 system); apk accepts --no-scripts only for
+	# the commands that change packages
+	case "$1" in
+	add|del|upgrade|fix) apk --root "$ROOT" --no-scripts "$@" ;;
+	*) apk --root "$ROOT" "$@" ;;
+	esac
+}
+
+cmd=${1:-}
+[ -n "$cmd" ] && shift
+case "$cmd" in
+add|upgrade|fix)
+	check; setup_root
+	lp64_apk "$cmd" "$@" || exit
+	[ -e "$ROOT/lib/libc.so" ] && link_loader
+	;;
+del|update|search|info|list|policy|dot)
+	check; [ -d "$ROOT/lib/apk/db" ] || die "nothing installed yet (apk-lp64 add PKG)"
+	lp64_apk "$cmd" "$@"
+	;;
+run)
+	check; [ -n "${1:-}" ] || die "usage: apk-lp64 run PROGRAM [ARGS]"
+	p=$1; shift
+	case "$p" in
+	/*) ;;
+	*) for d in usr/bin usr/sbin bin sbin; do [ -x "$ROOT/$d/$p" ] && { p=$ROOT/$d/$p; break; }; done ;;
+	esac
+	[ -x "$p" ] || die "no LP64 program '$p' in $ROOT"
+	exec "$ROOT/lib/libc.so" --library-path "$ROOT/lib:$ROOT/usr/lib" "$p" "$@"
+	;;
+setup)
+	check; setup_root
+	echo "LP64 root $ROOT ready (nothing installed); the loader link is made by the first 'add'"
+	;;
+status)
+	echo "root: $ROOT ($([ -d "$ROOT/lib/apk/db" ] && echo "$(lp64_apk info 2>/dev/null | wc -l) packages" || echo "not set up"))"
+	echo "OpenWrt $VERSION, target $TARGET, packages $ARCH"
+	echo "loader: $LOADER -> $(readlink "$LOADER" 2>/dev/null || echo "(none)")"
+	echo "library path ($PATHFILE): $(cat "$PATHFILE" 2>/dev/null || echo "(none)")"
+	echo "repositories:"; repos | sed 's/^/  /'
+	;;
+purge)
+	[ "$(readlink "$LOADER" 2>/dev/null)" = "$ROOT/lib/libc.so" ] && rm -f "$LOADER"
+	[ "$(cat "$PATHFILE" 2>/dev/null)" = "$ROOT/lib:$ROOT/usr/lib" ] && rm -f "$PATHFILE"
+	case "$ROOT" in /|/usr|/etc|/lib|"") die "refusing to remove '$ROOT'" ;; esac
+	rm -rf "$ROOT"
+	echo "removed $ROOT (and the loader link and path file, if they were ours)"
+	;;
+*)
+	sed -n '2,/^$/s/^# \{0,1\}//p' "$0" | sed '/^$/q'
+	[ -z "$cmd" ] || [ "$cmd" = help ] || exit 1
+	;;
+esac
