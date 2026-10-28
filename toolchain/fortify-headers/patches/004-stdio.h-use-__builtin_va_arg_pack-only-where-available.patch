@@ -1,0 +1,31 @@
+From: liviyifan <344781483+liviyifan@users.noreply.github.com>
+Subject: stdio.h: use __builtin_va_arg_pack only where the compiler has it
+
+clang has no __builtin_va_arg_pack, so building with these headers
+failed in the snprintf and sprintf wrappers ("use of unknown builtin").
+Define those two wrappers only when the compiler provides the builtin;
+with clang the other wrappers stay in place. GCC is not affected: it
+has the builtin, and the same program builds to an identical binary
+with and without this change.
+
+Signed-off-by: liviyifan <344781483+liviyifan@users.noreply.github.com>
+---
+--- a/include/stdio.h
++++ b/include/stdio.h
+@@ -92,6 +92,8 @@
+ 	return __r;
+ }
+ 
++/* __builtin_va_arg_pack is GCC only (not in clang) */
++#if __has_builtin(__builtin_va_arg_pack)
+ _FORTIFY_FN(snprintf) int snprintf(char *__s, size_t __n, const char *__f, ...)
+ {
+ 	size_t __b = __builtin_object_size(__s, 0);
+@@ -121,6 +123,7 @@
+ 	return __r;
+ #pragma GCC diagnostic pop
+ }
++#endif
+ 
+ #ifdef __cplusplus
+ }

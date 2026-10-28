@@ -42,8 +42,6 @@ ifeq ($(CLANG_ILP32_USE),y)
   TARGET_LDFLAGS += $(filter-out $(TARGET_LDFLAGS),$(CLANG_ILP32_WL))
   # LTO (-flto=auto: full LTO in clang) goes through the LLVMgold plugin of GNU ld without asking
   TARGET_LDFLAGS := $(filter-out -fuse-linker-plugin,$(TARGET_LDFLAGS))
-  # OpenWrt's fortify-headers use the GCC-only __builtin_va_arg_pack
-  TARGET_CPPFLAGS := $(filter-out -I$(TOOLCHAIN_DIR)/include/fortify,$(TARGET_CPPFLAGS))
   # the GCC toolchain of this build (the clang configuration file cannot know where it is); OpenWrt's GCC adds
   # the staging directory to the search paths itself, clang does not
   CLANG_ILP32_TOOLCHAIN := --gcc-toolchain=$(TOOLCHAIN_DIR) --sysroot=$(TOOLCHAIN_DIR)
