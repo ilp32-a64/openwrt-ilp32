@@ -42,6 +42,13 @@ ifeq ($(CLANG_ILP32_USE),y)
   TARGET_LDFLAGS += $(filter-out $(TARGET_LDFLAGS),$(CLANG_ILP32_WL))
   # LTO (-flto=auto: full LTO in clang) goes through the LLVMgold plugin of GNU ld without asking
   TARGET_LDFLAGS := $(filter-out -fuse-linker-plugin,$(TARGET_LDFLAGS))
+  # LLVM archive tools: the archives of LTO objects (clang bitcode) need their symbol index, which gcc-ar
+  # cannot make; and for configure scripts that look for them (CPython: llvm-ar for LTO)
+  TARGET_AR := $(CLANG_ILP32_DIR)/bin/llvm-ar
+  TARGET_RANLIB := $(CLANG_ILP32_DIR)/bin/llvm-ranlib
+  TARGET_NM := $(CLANG_ILP32_DIR)/bin/llvm-nm
+  export LLVM_AR := $(CLANG_ILP32_DIR)/bin/llvm-ar
+  export LLVM_PROFDATA := $(CLANG_ILP32_DIR)/bin/llvm-profdata
   # the GCC toolchain of this build (the clang configuration file cannot know where it is); OpenWrt's GCC adds
   # the staging directory to the search paths itself, clang does not
   CLANG_ILP32_TOOLCHAIN := --gcc-toolchain=$(TOOLCHAIN_DIR) --sysroot=$(TOOLCHAIN_DIR)
