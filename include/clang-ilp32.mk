@@ -7,7 +7,8 @@
 # (--rtlib=libgcc, -ffp-contract=off, ...) from the clang configuration file next to it.
 # Host builds, kernel modules and boot loaders are not affected.
 
-CLANG_ILP32_DIR ?= $(STAGING_DIR_HOST)/llvm-ilp32
+# tools/llvm-ilp32, or the prebuilt llvm-ilp32 tarball of a release unpacked as llvm-ilp32/ in the top directory
+CLANG_ILP32_DIR ?= $(if $(CONFIG_CLANG_ILP32_PREBUILT),$(TOPDIR)/llvm-ilp32,$(STAGING_DIR_HOST)/llvm-ilp32)
 
 # always GCC: the kernel and its modules, boot loaders and firmware, the toolchain's own libraries
 CLANG_ILP32_FIXED_GCC := toolchain

@@ -86,6 +86,7 @@ tools-$(if $(CONFIG_BUILD_ALL_HOST_TOOLS)$(CONFIG_TARGET_tegra),y) += cbootimage
 tools-$(if $(CONFIG_BUILD_ALL_HOST_TOOLS)$(CONFIG_USES_MINOR),y) += yafut
 tools-$(if $(CONFIG_BUILD_ALL_HOST_TOOLS)$(CONFIG_USE_SPARSE),y) += sparse
 tools-$(if $(CONFIG_BUILD_ALL_HOST_TOOLS)$(CONFIG_USE_LLVM_BUILD),y) += llvm-bpf
+tools-$(if $(CONFIG_CLANG_ILP32_PREBUILT),,$(CONFIG_CLANG_ILP32)) += llvm-ilp32
 tools-$(if $(CONFIG_BUILD_ALL_HOST_TOOLS)$(CONFIG_USE_MOLD),y) += mold
 
 # builddir dependencies
@@ -117,6 +118,7 @@ $(curdir)/lz4/compile := $(curdir)/meson/compile
 $(curdir)/lzma-old/compile := $(curdir)/zlib/compile
 $(curdir)/lzop/compile := $(curdir)/cmake/compile $(curdir)/liblzo/compile
 $(curdir)/llvm-bpf/compile := $(curdir)/cmake/compile
+$(curdir)/llvm-ilp32/compile := $(curdir)/cmake/compile
 $(curdir)/make-ext4fs/compile := $(curdir)/zlib/compile
 $(curdir)/meson/compile := $(curdir)/ninja/compile
 $(curdir)/missing-macros/compile := $(curdir)/autoconf/compile

@@ -312,12 +312,14 @@ menuconfig EXTRA_TARGET_ARCH
 		   ones clang cannot compile, separated by spaces.
 
 	config CLANG_ILP32_PREBUILT
-		bool "Use prebuilt clang (download, do not build LLVM)" if TOOLCHAINOPTS
+		bool "Use prebuilt clang (do not build LLVM)" if TOOLCHAINOPTS
 		depends on CLANG_ILP32
 		help
-		   Download the prebuilt llvm-ilp32 of the OpenWrt-ILP32 release
-		   (x86_64 Linux hosts) instead of building LLVM, which takes
-		   about an hour. Release builds always build it from source.
+		   Use the prebuilt llvm-ilp32 of an OpenWrt-ILP32 release
+		   (x86_64 Linux hosts, glibc 2.35 or later) instead of building
+		   LLVM, which takes hours: unpack it and rename or link the
+		   directory to llvm-ilp32 in the top directory of the tree.
+		   Release builds always build it from source.
 
 comment "Binary tools"
 	depends on TOOLCHAINOPTS
