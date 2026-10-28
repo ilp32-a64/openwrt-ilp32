@@ -59,6 +59,7 @@ CONFIGURE_ARGS += \
 	--enable-const \
 	--enable-overwrite \
 	--enable-pc-files \
+	--disable-pkg-ldflags \
 	--disable-rpath \
 	--without-ada \
 	--without-debug \
