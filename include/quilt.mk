@@ -39,6 +39,11 @@ FILES_DIR?=$(CURDIR)/files
 HOST_PATCH_DIR?=$(PATCH_DIR)
 HOST_FILES_DIR?=$(FILES_DIR)
 
+# patches of OpenWrt-ILP32 for a package of a feed (the feeds stay as pinned by feeds.conf.default):
+# feeds-patches/<feed>/<PKG_NAME>/, applied after the patches of the package, target and host build
+FEED_PATCH_DIR:=$(if $(filter $(TOPDIR)/feeds/%,$(CURDIR)),$(wildcard $(TOPDIR)/feeds-patches/$(firstword $(subst /, ,$(patsubst $(TOPDIR)/feeds/%,%,$(CURDIR))))/$(PKG_NAME)))
+PKG_FILE_DEPENDS+=$(FEED_PATCH_DIR)
+
 QUILT_CMD:=quilt --quiltrc=-
 
 define filter_series
@@ -81,12 +86,14 @@ endef
 define Host/Patch/Default
 	$(if $(HOST_QUILT),rm -rf $(HOST_BUILD_DIR)/patches; mkdir -p $(HOST_BUILD_DIR)/patches)
 	$(call HostPatchDir,$(HOST_BUILD_DIR),$(HOST_PATCH_DIR),)
+	$(if $(FEED_PATCH_DIR),$(call HostPatchDir,$(HOST_BUILD_DIR),$(FEED_PATCH_DIR),feeds-patches/))
 	$(if $(HOST_QUILT),touch $(HOST_BUILD_DIR)/.quilt_used)
 endef
 
 define Build/Patch/Default
 	$(if $(QUILT),rm -rf $(PKG_BUILD_DIR)/patches; mkdir -p $(PKG_BUILD_DIR)/patches)
 	$(call PatchDir,$(PKG_BUILD_DIR),$(PATCH_DIR),)
+	$(if $(FEED_PATCH_DIR),$(call PatchDir,$(PKG_BUILD_DIR),$(FEED_PATCH_DIR),feeds-patches/))
 	$(if $(QUILT),touch $(PKG_BUILD_DIR)/.quilt_used)
 endef
 
