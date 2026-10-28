@@ -72,6 +72,9 @@ else
 endif
 
 include $(INCLUDE_DIR)/hardening.mk
+ifdef CONFIG_CLANG_ILP32
+  include $(INCLUDE_DIR)/clang-ilp32.mk
+endif
 include $(INCLUDE_DIR)/prereq.mk
 include $(INCLUDE_DIR)/unpack.mk
 include $(INCLUDE_DIR)/depends.mk

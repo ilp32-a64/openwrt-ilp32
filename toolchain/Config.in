@@ -270,6 +270,55 @@ menuconfig EXTRA_TARGET_ARCH
 
 	endchoice
 
+	config CLANG_ILP32
+		bool "Compile target packages with clang (ILP32)" if TOOLCHAINOPTS
+		depends on AARCH64_ABI_ILP32
+		help
+		   Compile the target part of packages with clang (llvm-ilp32:
+		   LLVM with the AArch64 ILP32 patches) instead of GCC. The GCC
+		   toolchain stays: musl, libgcc, libstdc++ and GNU ld. Both
+		   compilers make the same ABI, so packages of both mix freely.
+
+		   The kernel and its modules, boot loaders, firmware and host
+		   tools are always compiled with GCC.
+
+	choice
+		prompt "Packages to compile with clang" if TOOLCHAINOPTS
+		depends on CLANG_ILP32
+		default CLANG_ILP32_SELECTED
+
+		config CLANG_ILP32_ALL
+			bool "All target packages"
+
+		config CLANG_ILP32_SELECTED
+			bool "Selected packages"
+
+	endchoice
+
+	config CLANG_ILP32_PACKAGES
+		string "Packages compiled with clang" if TOOLCHAINOPTS
+		depends on CLANG_ILP32_SELECTED
+		default "ucode lucihttp json-c"
+		help
+		   Source package names (PKG_NAME, e.g. json-c for libjson-c),
+		   separated by spaces.
+
+	config CLANG_ILP32_GCC_PACKAGES
+		string "Packages always compiled with GCC" if TOOLCHAINOPTS
+		depends on CLANG_ILP32
+		default ""
+		help
+		   Source package names compiled with GCC in any case, e.g. the
+		   ones clang cannot compile, separated by spaces.
+
+	config CLANG_ILP32_PREBUILT
+		bool "Use prebuilt clang (download, do not build LLVM)" if TOOLCHAINOPTS
+		depends on CLANG_ILP32
+		help
+		   Download the prebuilt llvm-ilp32 of the OpenWrt-ILP32 release
+		   (x86_64 Linux hosts) instead of building LLVM, which takes
+		   about an hour. Release builds always build it from source.
+
 comment "Binary tools"
 	depends on TOOLCHAINOPTS
 
